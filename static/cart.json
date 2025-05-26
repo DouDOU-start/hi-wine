@@ -3,7 +3,7 @@
     "id": 1,
     "name": "赤霞珠干红",
     "price": 128,
-    "img": "http://127.0.0.1:9002/wine.png",
+    "img": "/wine.png",
     "category": "红酒",
     "count": 2
   },
@@ -11,7 +11,7 @@
     "id": 3,
     "name": "精酿IPA啤酒",
     "price": 38,
-    "img": "http://127.0.0.1:9002/wine.png",
+    "img": "/wine.png",
     "category": "啤酒",
     "count": 1
   }
