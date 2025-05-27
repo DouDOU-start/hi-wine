@@ -16,7 +16,7 @@
 		</view>
 		<view class="ins-list">
 			<view v-for="item in filteredWines" :key="item.id" class="ins-card">
-				<image :src="imgBaseUrl + item.img" class="ins-img" mode="aspectFill" lazy-load="true" :style="{background:'#f3f3f3'}" />
+				<image :src="IMG_BASE_URL + item.img" class="ins-img" mode="aspectFill" lazy-load="true" :style="{background:'#f3f3f3'}" />
 				<view class="ins-info">
 					<text class="ins-name">{{ item.name }}</text>
 					<text class="ins-price">￥{{ item.price }}</text>
@@ -29,7 +29,7 @@
 
 <script>
 import winesData from '../../static/wines.json';
-const imgBaseUrl = import.meta.env.VITE_IMG_BASE_URL || '';
+import { IMG_BASE_URL } from '@/config.js'
 function debounce(fn, delay) {
 	let timer = null;
 	return function(...args) {
@@ -44,7 +44,7 @@ export default {
 			categories: ['全部', '红酒', '白酒', '啤酒', '鸡尾酒'],
 			activeTab: 0,
 			wines: winesData,
-			imgBaseUrl
+			IMG_BASE_URL
 		}
 	},
 	computed: {

@@ -10,7 +10,7 @@
         </view>
         <view class="order-goods">
           <view v-for="item in order.items" :key="item.id" class="order-good">
-            <image :src="imgBaseUrl + item.img" class="order-img" mode="aspectFill" />
+            <image :src="IMG_BASE_URL + item.img" class="order-img" mode="aspectFill" />
             <view class="order-good-info">
               <text class="order-good-name">{{ item.name }}</text>
               <text class="order-good-count">x{{ item.count }}</text>
@@ -25,12 +25,12 @@
 
 <script>
 import ordersData from '../../static/orders.json';
-const imgBaseUrl = import.meta.env.VITE_IMG_BASE_URL || '';
+import { IMG_BASE_URL } from '@/config.js'
 export default {
   data() {
     return {
       orders: ordersData,
-      imgBaseUrl
+      IMG_BASE_URL
     };
   },
 };

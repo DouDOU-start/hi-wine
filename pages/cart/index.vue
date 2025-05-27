@@ -4,7 +4,7 @@
     <view v-if="cart.length === 0" class="cart-empty">购物车空空如也~</view>
     <view v-else class="cart-list">
       <view v-for="item in cart" :key="item.id" class="cart-item">
-        <image :src="imgBaseUrl + item.img" class="cart-img" mode="aspectFill" />
+        <image :src="IMG_BASE_URL + item.img" class="cart-img" mode="aspectFill" />
         <view class="cart-info">
           <text class="cart-name">{{ item.name }}</text>
           <text class="cart-price">￥{{ item.price }}</text>
@@ -27,12 +27,12 @@
 
 <script>
 import cartData from '../../static/cart.json';
-const imgBaseUrl = import.meta.env.VITE_IMG_BASE_URL || '';
+import { IMG_BASE_URL } from '@/config.js'
 export default {
   data() {
     return {
       cart: cartData,
-      imgBaseUrl
+      IMG_BASE_URL
     };
   },
   computed: {
