@@ -7,16 +7,16 @@
 		<view class="ins-tabs">
 			<view
 				v-for="(cat, idx) in categories"
-				:key="cat"
+				:key="cat.id || idx"
 				:class="['ins-tab', idx === activeTab ? 'active' : '']"
-				@tap="activeTab = idx"
+				@tap="changeCategory(idx)"
 			>
-				{{ cat }}
+				{{ idx === 0 ? '全部' : cat.name }}
 			</view>
 		</view>
 		<view class="ins-list">
-			<view v-for="item in filteredWines" :key="item.id" class="ins-card">
-				<image :src="IMG_BASE_URL + item.img" class="ins-img" mode="aspectFill" lazy-load="true" :style="{background:'#f3f3f3'}" />
+			<view v-for="item in wines" :key="item.id" class="ins-card">
+				<image :src="item.image ? item.image : IMG_BASE_URL + '/wine.png'" class="ins-img" mode="aspectFill" lazy-load="true" :style="{background:'#f3f3f3'}" />
 				<view class="ins-info">
 					<text class="ins-name">{{ item.name }}</text>
 					<text class="ins-price">￥{{ item.price }}</text>
@@ -24,12 +24,15 @@
 				<button class="ins-btn" @tap="addToCart(item)">加入购物车</button>
 			</view>
 		</view>
+		<view v-if="loading" class="loading">加载中...</view>
+		<view v-if="!loading && wines.length === 0" class="empty">暂无商品</view>
 	</view>
 </template>
 
 <script>
-import winesData from '../../static/wines.json';
-import { IMG_BASE_URL } from '@/config.js'
+import { IMG_BASE_URL } from '@/config.js';
+import api from '@/utils/api.js';
+
 function debounce(fn, delay) {
 	let timer = null;
 	return function(...args) {
@@ -41,35 +44,115 @@ function debounce(fn, delay) {
 export default {
 	data() {
 		return {
-			categories: ['全部', '红酒', '白酒', '啤酒', '鸡尾酒'],
+			categories: [{ name: '全部' }],
 			activeTab: 0,
-			wines: winesData,
+			wines: [],
+			loading: false,
+			page: 1,
+			size: 10,
+			hasMore: true,
 			IMG_BASE_URL
 		}
 	},
-	computed: {
-		filteredWines() {
-			if (this.activeTab === 0) return this.wines;
-			return this.wines.filter(w => w.category === this.categories[this.activeTab]);
-		},
+	onLoad() {
+		this.loadCategories();
+		this.loadProducts();
 	},
 	methods: {
+		// 加载商品分类
+		async loadCategories() {
+			try {
+				const res = await api.getCategoryList();
+				if (res && res.list) {
+					// 添加"全部"分类
+					this.categories = [{ name: '全部' }, ...res.list];
+				}
+			} catch (err) {
+				console.error('加载分类失败', err);
+			}
+		},
+		
+		// 切换分类
+		changeCategory(index) {
+			if (this.activeTab === index) return;
+			this.activeTab = index;
+			this.wines = [];
+			this.page = 1;
+			this.hasMore = true;
+			this.loadProducts();
+		},
+		
+		// 加载商品列表
+		async loadProducts() {
+			if (this.loading || !this.hasMore) return;
+			
+			this.loading = true;
+			try {
+				const categoryId = this.activeTab === 0 ? 0 : this.categories[this.activeTab].id;
+				const res = await api.getProductList(categoryId, '', this.page, this.size);
+				
+				if (res && res.list) {
+					// 如果是第一页，直接替换数据，否则追加数据
+					if (this.page === 1) {
+						this.wines = res.list;
+					} else {
+						this.wines = [...this.wines, ...res.list];
+					}
+					
+					// 判断是否还有更多数据
+					this.hasMore = res.list.length === this.size;
+					this.page++;
+				}
+			} catch (err) {
+				console.error('加载商品失败', err);
+				uni.showToast({
+					title: '加载商品失败',
+					icon: 'none'
+				});
+			} finally {
+				this.loading = false;
+			}
+		},
+		
+		// 添加到购物车
 		addToCart: debounce(function(item) {
 			let cart = uni.getStorageSync('cart') || [];
 			const idx = cart.findIndex(i => i.id === item.id);
 			let changed = false;
+			
 			if (idx !== -1) {
 				cart[idx].count += 1;
 				changed = true;
 			} else {
-				cart.push({ ...item, count: 1 });
+				// 转换API返回的商品格式为购物车格式
+				cart.push({
+					id: item.id,
+					name: item.name,
+					price: item.price,
+					image: item.image,
+					count: 1
+				});
 				changed = true;
 			}
+			
 			if (changed) {
 				uni.setStorageSync('cart', cart);
 				uni.showToast({ title: `已加入购物车`, icon: 'success' });
 			}
 		}, 300),
+	},
+	// 下拉刷新
+	onPullDownRefresh() {
+		this.wines = [];
+		this.page = 1;
+		this.hasMore = true;
+		this.loadProducts().then(() => {
+			uni.stopPullDownRefresh();
+		});
+	},
+	// 上拉加载更多
+	onReachBottom() {
+		this.loadProducts();
 	}
 }
 </script>
@@ -102,6 +185,8 @@ export default {
 		justify-content: center;
 		margin: 30rpx 0 40rpx 0;
 		gap: 30rpx;
+		flex-wrap: wrap;
+		padding: 0 20rpx;
 	}
 	.ins-tab {
 		font-size: 30rpx;
@@ -112,6 +197,7 @@ export default {
 		transition: all 0.2s;
 		box-shadow: 0 2rpx 8rpx #f3f3f3;
 		font-weight: 500;
+		margin-bottom: 10rpx;
 	}
 	.ins-tab.active {
 		color: #fff;
@@ -181,5 +267,11 @@ export default {
 		box-shadow: 0 2rpx 8rpx #e0e0e0;
 		padding: 16rpx 0;
 		letter-spacing: 1rpx;
+	}
+	.loading, .empty {
+		text-align: center;
+		color: #b8b8b8;
+		margin: 20rpx 0;
+		font-size: 28rpx;
 	}
 </style>

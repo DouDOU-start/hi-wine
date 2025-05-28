@@ -4,7 +4,7 @@
     <view v-if="cart.length === 0" class="cart-empty">购物车空空如也~</view>
     <view v-else class="cart-list">
       <view v-for="item in cart" :key="item.id" class="cart-item">
-        <image :src="IMG_BASE_URL + item.img" class="cart-img" mode="aspectFill" />
+        <image :src="item.image ? item.image : IMG_BASE_URL + '/wine.png'" class="cart-img" mode="aspectFill" />
         <view class="cart-info">
           <text class="cart-name">{{ item.name }}</text>
           <text class="cart-price">￥{{ item.price }}</text>
@@ -19,20 +19,43 @@
       <view class="cart-footer">
         <text>合计：</text>
         <text class="cart-total">￥{{ totalPrice }}</text>
-        <button class="cart-order" @tap="submitOrder">下单</button>
+        <button class="cart-order" @tap="showOrderConfirm">下单</button>
       </view>
     </view>
+    
+    <!-- 下单确认弹窗 -->
+    <uni-popup ref="popup" type="dialog">
+      <uni-popup-dialog
+        title="确认下单"
+        content="确定要提交订单吗？"
+        :before-close="true"
+        @confirm="submitOrder"
+        @close="closePopup"
+      ></uni-popup-dialog>
+    </uni-popup>
+    
+    <!-- 加载中 -->
+    <uni-popup ref="loading" type="dialog" :mask-click="false">
+      <uni-popup-dialog
+        title="处理中"
+        content="订单提交中，请稍候..."
+        :show-cancel="false"
+        :before-close="true"
+      ></uni-popup-dialog>
+    </uni-popup>
   </view>
 </template>
 
 <script>
-import cartData from '../../static/cart.json';
-import { IMG_BASE_URL } from '@/config.js'
+import { IMG_BASE_URL } from '@/config.js';
+import api from '@/utils/api.js';
+
 export default {
   data() {
     return {
-      cart: cartData,
-      IMG_BASE_URL
+      cart: [],
+      IMG_BASE_URL,
+      submitting: false
     };
   },
   computed: {
@@ -40,24 +63,121 @@ export default {
       return this.cart.reduce((sum, item) => sum + item.price * item.count, 0);
     },
   },
+  onShow() {
+    // 每次显示页面时，从本地存储读取购物车数据
+    this.loadCartData();
+  },
   methods: {
+    // 加载购物车数据
+    loadCartData() {
+      const cartData = uni.getStorageSync('cart') || [];
+      this.cart = cartData;
+    },
+    
+    // 修改商品数量
     changeCount(item, delta) {
       const idx = this.cart.findIndex(i => i.id === item.id);
       if (idx !== -1) {
         this.cart[idx].count += delta;
         if (this.cart[idx].count < 1) this.cart[idx].count = 1;
+        this.updateCartStorage();
       }
     },
+    
+    // 移除商品
     removeItem(item) {
       this.cart = this.cart.filter(i => i.id !== item.id);
+      this.updateCartStorage();
     },
-    submitOrder() {
-      if (this.cart.length === 0) return;
-      // 这里可扩展为写入本地或后端
-      this.cart = [];
-      uni.showToast({ title: '下单成功', icon: 'success' });
+    
+    // 更新本地存储
+    updateCartStorage() {
+      uni.setStorageSync('cart', this.cart);
     },
-  },
+    
+    // 显示下单确认弹窗
+    showOrderConfirm() {
+      if (this.cart.length === 0) {
+        uni.showToast({
+          title: '购物车为空',
+          icon: 'none'
+        });
+        return;
+      }
+      
+      // 检查是否登录
+      const token = uni.getStorageSync('token');
+      if (!token) {
+        uni.showToast({
+          title: '请先登录',
+          icon: 'none'
+        });
+        setTimeout(() => {
+          uni.switchTab({
+            url: '/pages/profile/index'
+          });
+        }, 1500);
+        return;
+      }
+      
+      this.$refs.popup.open();
+    },
+    
+    // 关闭弹窗
+    closePopup() {
+      this.$refs.popup.close();
+    },
+    
+    // 提交订单
+    async submitOrder() {
+      if (this.submitting) return;
+      
+      this.submitting = true;
+      this.$refs.loading.open();
+      
+      try {
+        // 将购物车商品转换为订单项
+        const items = this.cart.map(item => ({
+          productId: item.id,
+          quantity: item.count
+        }));
+        
+        // 调用创建订单API
+        const res = await api.createOrder(0, items);
+        
+        if (res && res.id) {
+          // 清空购物车
+          this.cart = [];
+          this.updateCartStorage();
+          
+          // 关闭加载弹窗
+          this.$refs.loading.close();
+          
+          // 显示成功提示
+          uni.showToast({
+            title: '下单成功',
+            icon: 'success'
+          });
+          
+          // 跳转到订单页面
+          setTimeout(() => {
+            uni.switchTab({
+              url: '/pages/order/index'
+            });
+          }, 1500);
+        }
+      } catch (err) {
+        console.error('下单失败', err);
+        uni.showToast({
+          title: '下单失败，请重试',
+          icon: 'none'
+        });
+      } finally {
+        this.submitting = false;
+        this.$refs.loading.close();
+      }
+    }
+  }
 };
 </script>
 
