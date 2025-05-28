@@ -9,6 +9,7 @@ import (
 
 	"backend/internal/controller"
 	"backend/internal/controller/hello"
+	"backend/internal/middleware"
 )
 
 var (
@@ -25,6 +26,17 @@ var (
 					controller.NewWechat(),
 				)
 			})
+
+			// 需要登录的API组
+			s.Group("/api", func(group *ghttp.RouterGroup) {
+				group.Middleware(ghttp.MiddlewareHandlerResponse)
+				group.Middleware(middleware.JwtAuth)
+				group.Bind(
+					controller.NewProduct(),
+					controller.NewOrder(),
+				)
+			})
+
 			s.Run()
 			return nil
 		},

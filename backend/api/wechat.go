@@ -5,7 +5,7 @@ import (
 )
 
 type WechatLoginReq struct {
-	g.Meta   `path:"/api/wechat/login" method:"post" summary:"微信小程序登录"`
+	g.Meta   `path:"/wechat/login" method:"post" summary:"微信小程序登录"`
 	Code     string `json:"code" description:"微信登录凭证code"`
 	Nickname string `json:"nickname" description:"昵称"`
 	Avatar   string `json:"avatar" description:"头像"`

@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gcfg"
-	"github.com/gogf/gf/v2/util/gconv"
 	"github.com/golang-jwt/jwt/v4"
 )
 
@@ -30,9 +28,8 @@ func Wechat() *sWechat {
 // Login 处理微信小程序登录
 func (s *sWechat) Login(ctx context.Context, req *api.WechatLoginReq) (res *api.WechatLoginRes, err error) {
 	// 1. 读取配置
-	cfg, _ := gcfg.Instance().Data(ctx)
-	appid := gconv.String(cfg["wechat.appid"])
-	secret := gconv.String(cfg["wechat.secret"])
+	appid := g.Cfg().MustGet(ctx, "wechat.appid").String()
+	secret := g.Cfg().MustGet(ctx, "wechat.secret").String()
 	jwtSecret := []byte("hi-wine-jwt-secret") // 建议放配置
 
 	// 2. 请求微信服务器换 openid
