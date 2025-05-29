@@ -144,8 +144,9 @@ export default {
         
         // 调用创建订单API
         const res = await api.createOrder(0, items);
+        console.log('订单创建响应:', JSON.stringify(res));
         
-        if (res && res.id) {
+        if (res && res.code === 0 && res.data && res.data.id) {
           // 清空购物车
           this.cart = [];
           this.updateCartStorage();
@@ -165,6 +166,8 @@ export default {
               url: '/pages/order/index'
             });
           }, 1500);
+        } else {
+          throw new Error('创建订单失败');
         }
       } catch (err) {
         console.error('下单失败', err);

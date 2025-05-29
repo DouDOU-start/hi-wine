@@ -120,20 +120,21 @@ export default {
         const status = this.statusTabs[this.activeTab].value;
         
         const res = await api.getOrderList(status, this.page, this.size);
+        console.log('订单列表响应:', JSON.stringify(res));
         
-        if (res && res.list) {
+        if (res && res.code === 0 && res.data && res.data.list) {
           if (this.page === 1) {
-            this.orders = res.list;
+            this.orders = res.data.list;
           } else {
-            this.orders = [...this.orders, ...res.list];
+            this.orders = [...this.orders, ...res.data.list];
           }
           
           // 判断是否还有更多数据
-          this.hasMore = res.list.length === this.size;
+          this.hasMore = res.data.list.length === this.size;
           this.page++;
           
           // 加载每个订单的商品详情
-          for (const order of res.list) {
+          for (const order of res.data.list) {
             this.loadOrderItems(order.id);
           }
         }
@@ -152,9 +153,10 @@ export default {
     async loadOrderItems(orderId) {
       try {
         const res = await api.getOrderDetail(orderId);
-        if (res && res.orderItems) {
+        console.log('订单详情响应:', JSON.stringify(res));
+        if (res && res.code === 0 && res.data && res.data.orderItems) {
           // 使用Vue.set确保响应式更新
-          this.$set(this.orderItems, orderId, res.orderItems);
+          this.$set(this.orderItems, orderId, res.data.orderItems);
         }
       } catch (err) {
         console.error(`加载订单${orderId}商品失败`, err);
@@ -169,13 +171,17 @@ export default {
         onConfirm: async () => {
           try {
             // 调用更新订单状态API，将状态改为已支付(1)
-            await api.updateOrderStatus(order.id, 1);
-            uni.showToast({
-              title: '支付成功',
-              icon: 'success'
-            });
-            // 刷新订单列表
-            this.refreshOrders();
+            const res = await api.updateOrderStatus(order.id, 1);
+            if (res && res.code === 0) {
+              uni.showToast({
+                title: '支付成功',
+                icon: 'success'
+              });
+              // 刷新订单列表
+              this.refreshOrders();
+            } else {
+              throw new Error('支付失败');
+            }
           } catch (err) {
             console.error('支付失败', err);
             uni.showToast({
@@ -196,13 +202,17 @@ export default {
         onConfirm: async () => {
           try {
             // 调用更新订单状态API，将状态改为已取消(3)
-            await api.updateOrderStatus(order.id, 3);
-            uni.showToast({
-              title: '订单已取消',
-              icon: 'success'
-            });
-            // 刷新订单列表
-            this.refreshOrders();
+            const res = await api.updateOrderStatus(order.id, 3);
+            if (res && res.code === 0) {
+              uni.showToast({
+                title: '订单已取消',
+                icon: 'success'
+              });
+              // 刷新订单列表
+              this.refreshOrders();
+            } else {
+              throw new Error('取消订单失败');
+            }
           } catch (err) {
             console.error('取消订单失败', err);
             uni.showToast({

@@ -19,7 +19,25 @@ const request = (url, method, data, needAuth = true) => {
       },
       success: (res) => {
         if (res.statusCode === 200) {
-          resolve(res.data);
+          // 服务器正常响应
+          console.log(`API响应(${url}):`, JSON.stringify(res.data));
+          
+          // 检查响应格式，兼容不同格式
+          if (res.data.hasOwnProperty('code')) {
+            // 新格式: { code: 0, message: '成功', data: {...} }
+            if (res.data.code === 0) {
+              resolve(res.data);
+            } else {
+              uni.showToast({
+                title: res.data.message || '请求失败',
+                icon: 'none'
+              });
+              reject(new Error(res.data.message || '请求失败'));
+            }
+          } else {
+            // 旧格式: 直接返回数据
+            resolve({ code: 0, message: '操作成功', data: res.data });
+          }
         } else if (res.statusCode === 401) {
           // token失效，跳转到登录页
           uni.showToast({
