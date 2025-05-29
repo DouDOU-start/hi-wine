@@ -1,0 +1,65 @@
+/* 全局样式 */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* 页面布局 */
+.page-container {
+  padding: 20px;
+}
+
+.page-title {
+  margin-bottom: 20px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
+
+/* 表格样式 */
+.table-container {
+  margin-top: 20px;
+}
+
+/* 表单样式 */
+.form-container {
+  max-width: 800px;
+}
+
+/* 操作按钮 */
+.operation-btn {
+  margin-right: 10px;
+}
+
+/* 卡片样式 */
+.stats-card {
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.stats-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 数据概览 */
+.data-overview {
+  margin-bottom: 30px;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .page-container {
+    padding: 10px;
+  }
+  
+  .form-container {
+    max-width: 100%;
+  }
+} 
