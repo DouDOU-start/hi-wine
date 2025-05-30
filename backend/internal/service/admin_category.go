@@ -32,13 +32,22 @@ func (s *localAdminCategoryService) List(ctx context.Context, req *api.AdminCate
 	// 构建查询条件
 	model := dao.Category.Ctx(ctx)
 
-	// 分页查询
+	// 查询总数
 	count, err := model.Count()
 	if err != nil {
 		return nil, err
 	}
 
-	list, err := model.Page(req.Page, req.Size).Order("sort ASC, id DESC").All()
+	// 判断是否需要分页
+	var list interface{}
+	if req.Page > 0 && req.Size > 0 {
+		// 使用分页查询
+		list, err = model.Page(req.Page, req.Size).Order("sort ASC, id DESC").All()
+	} else {
+		// 查询全部数据
+		list, err = model.Order("sort ASC, id DESC").All()
+	}
+
 	if err != nil {
 		return nil, err
 	}

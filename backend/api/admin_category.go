@@ -7,8 +7,8 @@ import (
 // 管理员分类列表请求
 type AdminCategoryListReq struct {
 	g.Meta `path:"/category/list" method:"get" summary:"获取分类列表(管理员)"`
-	Page   int `json:"page" description:"页码" v:"min:1" d:"1"`
-	Size   int `json:"size" description:"每页数量" v:"max:50" d:"10"`
+	Page   int `json:"page" description:"页码，不传或传0则查询全部数据" v:"min:0"`
+	Size   int `json:"size" description:"每页数量，不传或传0则查询全部数据" v:"min:0|max:50"`
 }
 
 // 管理员分类列表响应
