@@ -54,6 +54,15 @@ export function updateProductStatus(id, status) {
   });
 }
 
+// 批量更新商品状态
+export function batchUpdateProductStatus(ids, status) {
+  return request({
+    url: '/api/admin/product/batch-status',
+    method: 'post',
+    data: { ids, status }
+  });
+}
+
 // 上传商品图片
 export function uploadProductImage(file) {
   const formData = new FormData();

@@ -1,40 +1,265 @@
 <template>
   <div class="page-container">
-    <div class="page-title">商品管理</div>
+    <div class="page-header">
+      <div class="page-title">商品管理</div>
+      <div class="data-summary">
+        <el-tag type="info">总商品: {{ total }}</el-tag>
+        <el-tag v-if="lowStockCount > 0" type="warning">库存不足: {{ lowStockCount }}</el-tag>
+        <el-tag v-if="outOfStockCount > 0" type="danger">缺货: {{ outOfStockCount }}</el-tag>
+      </div>
+    </div>
     
-    <el-card shadow="never" class="search-card">
-      <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="商品名称">
-          <el-input v-model="searchForm.name" placeholder="请输入商品名称" clearable />
-        </el-form-item>
-        <el-form-item label="分类">
-          <el-select v-model="searchForm.categoryId" placeholder="请选择分类" clearable>
-            <el-option
-              v-for="item in categoryOptions"
-              :key="item.id"
-              :label="item.name"
-              :value="item.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="上架" :value="1" />
-            <el-option label="下架" :value="0" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="resetSearch">重置</el-button>
-        </el-form-item>
+    <el-card shadow="hover" class="search-card">
+      <el-form :inline="true" :model="searchForm" class="search-form" size="default">
+        <el-row :gutter="20">
+          <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+            <el-form-item label="商品名称">
+              <el-input v-model="searchForm.name" placeholder="请输入商品名称" clearable />
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+            <el-form-item label="分类">
+              <el-select 
+                v-model="searchForm.categoryId" 
+                placeholder="请选择分类" 
+                clearable
+                filterable
+                popper-class="category-select-dropdown"
+                :popper-options="{ boundariesPadding: 0, gpuAcceleration: false }"
+              >
+                <template #prefix>
+                  <el-icon class="category-icon"><Grid /></el-icon>
+                </template>
+                <el-option-group v-if="categoryGroups.length > 0" v-for="group in categoryGroups" :key="group.id" :label="group.name">
+                  <div class="group-label">
+                    <el-icon><Folder /></el-icon>
+                    {{ group.name }}
+                  </div>
+                  <el-option
+                    v-for="item in group.children"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  >
+                    <div class="category-option">
+                      <el-icon class="category-child-icon"><Document /></el-icon>
+                      <span>{{ item.name }}</span>
+                    </div>
+                  </el-option>
+                </el-option-group>
+                <template v-else>
+                  <el-option
+                    v-for="item in categoryOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  >
+                    <div class="category-option">
+                      <el-icon class="category-icon"><Folder /></el-icon>
+                      <span>{{ item.name }}</span>
+                      <el-tag size="small" type="info" class="item-count" v-if="item.count">{{ item.count }}</el-tag>
+                    </div>
+                  </el-option>
+                </template>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+            <el-form-item label="状态">
+              <el-select 
+                v-model="searchForm.status" 
+                placeholder="请选择状态" 
+                clearable
+                popper-class="status-select-dropdown"
+              >
+                <template #prefix>
+                  <el-icon class="status-icon"><SetUp /></el-icon>
+                </template>
+                <el-option-group label="商品状态">
+                  <el-option label="上架" :value="1">
+                    <div class="status-option">
+                      <el-tag size="small" type="success" effect="dark" class="status-tag-select">上架</el-tag>
+                      <span class="status-desc">商品可见且可购买</span>
+                    </div>
+                  </el-option>
+                  <el-option label="下架" :value="0">
+                    <div class="status-option">
+                      <el-tag size="small" type="info" effect="dark" class="status-tag-select">下架</el-tag>
+                      <span class="status-desc">商品不可见且不可购买</span>
+                    </div>
+                  </el-option>
+                </el-option-group>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :xs="24" :sm="24" :md="6" :lg="6" :xl="4" class="search-buttons">
+            <el-form-item>
+              <el-button type="primary" @click="handleSearch">
+                <el-icon><Search /></el-icon>查询
+              </el-button>
+              <el-button @click="resetSearch">
+                <el-icon><Refresh /></el-icon>重置
+              </el-button>
+              <el-button type="text" @click="toggleAdvanced">
+                {{ showAdvanced ? '收起' : '高级筛选' }}
+                <el-icon>
+                  <component :is="showAdvanced ? 'ArrowUp' : 'ArrowDown'" />
+                </el-icon>
+              </el-button>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <!-- 高级搜索区域 -->
+        <el-collapse-transition>
+          <div v-show="showAdvanced">
+            <el-row :gutter="20">
+              <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+                <el-form-item label="价格区间">
+                  <el-input-number v-model="searchForm.minPrice" placeholder="最低价" :min="0" :precision="2" style="width: 120px;" />
+                  <span class="price-separator">至</span>
+                  <el-input-number v-model="searchForm.maxPrice" placeholder="最高价" :min="0" :precision="2" style="width: 120px;" />
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+                <el-form-item label="库存">
+                  <el-select 
+                    v-model="searchForm.stockStatus" 
+                    placeholder="库存状态" 
+                    clearable
+                    popper-class="stock-select-dropdown"
+                  >
+                    <template #prefix>
+                      <el-icon class="stock-icon"><Goods /></el-icon>
+                    </template>
+                    <el-option-group label="库存状态">
+                      <el-option label="充足" :value="'normal'">
+                        <div class="stock-option">
+                          <div class="stock-indicator">
+                            <el-icon class="stock-normal-icon"><CircleCheckFilled /></el-icon>
+                            <el-tag size="small" type="success" effect="plain" class="stock-tag-select">充足</el-tag>
+                          </div>
+                          <span class="stock-desc">库存 > 10</span>
+                        </div>
+                      </el-option>
+                      <el-option label="不足" :value="'low'">
+                        <div class="stock-option">
+                          <div class="stock-indicator">
+                            <el-icon class="stock-low-icon"><WarningFilled /></el-icon>
+                            <el-tag size="small" type="warning" effect="plain" class="stock-tag-select">不足</el-tag>
+                          </div>
+                          <span class="stock-desc">0 < 库存 ≤ 10</span>
+                        </div>
+                      </el-option>
+                      <el-option label="缺货" :value="'out'">
+                        <div class="stock-option">
+                          <div class="stock-indicator">
+                            <el-icon class="stock-out-icon"><CircleCloseFilled /></el-icon>
+                            <el-tag size="small" type="danger" effect="plain" class="stock-tag-select">缺货</el-tag>
+                          </div>
+                          <span class="stock-desc">库存 = 0</span>
+                        </div>
+                      </el-option>
+                    </el-option-group>
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+                <el-form-item label="创建时间">
+                  <el-date-picker
+                    v-model="searchForm.dateRange"
+                    type="daterange"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
+                    value-format="YYYY-MM-DD"
+                  />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+        </el-collapse-transition>
       </el-form>
+      
+      <!-- 快速筛选标签 -->
+      <div class="quick-filter">
+        <span class="quick-filter-label">快速筛选:</span>
+        <div class="filter-button-group">
+          <el-button 
+            :class="['filter-button', { 'active': activeFilter === 'all' }]" 
+            size="small" 
+            @click="applyQuickFilter('all')"
+          >
+            <el-icon><Tickets /></el-icon>全部商品
+          </el-button>
+          <el-button 
+            :class="['filter-button', { 'active': activeFilter === 'lowStock' }]" 
+            size="small" 
+            @click="applyQuickFilter('lowStock')"
+            type="warning"
+            plain
+          >
+            <el-icon><WarningFilled /></el-icon>库存不足
+            <el-badge v-if="lowStockCount > 0" :value="lowStockCount" class="filter-badge" />
+          </el-button>
+          <el-button 
+            :class="['filter-button', { 'active': activeFilter === 'outOfStock' }]" 
+            size="small" 
+            @click="applyQuickFilter('outOfStock')"
+            type="danger"
+            plain
+          >
+            <el-icon><RemoveFilled /></el-icon>缺货商品
+            <el-badge v-if="outOfStockCount > 0" :value="outOfStockCount" class="filter-badge" />
+          </el-button>
+          <el-button 
+            :class="['filter-button', { 'active': activeFilter === 'onSale' }]" 
+            size="small" 
+            @click="applyQuickFilter('onSale')"
+            type="success"
+            plain
+          >
+            <el-icon><Select /></el-icon>已上架
+          </el-button>
+          <el-button 
+            :class="['filter-button', { 'active': activeFilter === 'offSale' }]" 
+            size="small" 
+            @click="applyQuickFilter('offSale')"
+            type="info"
+            plain
+          >
+            <el-icon><TurnOff /></el-icon>已下架
+          </el-button>
+        </div>
+      </div>
     </el-card>
     
-    <el-card shadow="never" class="table-card">
+    <el-card shadow="hover" class="table-card">
       <div class="table-header">
         <div class="left">
-          <el-button type="primary" @click="handleAdd">添加商品</el-button>
-          <el-button @click="handleBatchDelete" :disabled="selectedIds.length === 0">批量删除</el-button>
+          <el-button type="primary" @click="handleAdd">
+            <el-icon><Plus /></el-icon>添加商品
+          </el-button>
+          <el-dropdown v-if="selectedIds.length > 0" @command="handleBatchCommand">
+            <el-button type="primary" plain>
+              批量操作<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+            </el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item command="delete">批量删除</el-dropdown-item>
+                <el-dropdown-item command="onSale">批量上架</el-dropdown-item>
+                <el-dropdown-item command="offSale">批量下架</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
+          <el-button v-else disabled>批量操作</el-button>
+        </div>
+        <div class="right">
+          <el-switch
+            v-model="tableConfig.showImage"
+            active-text="显示图片"
+            inactive-text="隐藏图片"
+          />
         </div>
       </div>
       
@@ -42,12 +267,14 @@
         v-loading="loading"
         :data="productList"
         border
+        stripe
         style="width: 100%"
         @selection-change="handleSelectionChange"
+        :header-cell-style="{ background: '#f5f7fa' }"
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="image" label="图片" width="100">
+        <el-table-column type="selection" width="55" fixed="left" />
+        <el-table-column prop="id" label="ID" width="80" sortable />
+        <el-table-column prop="image" label="图片" width="100" v-if="tableConfig.showImage">
           <template #default="scope">
             <el-image 
               v-if="scope.row.image" 
@@ -55,46 +282,122 @@
               style="width: 60px; height: 60px"
               fit="cover"
               :preview-src-list="[scope.row.image]"
+              :initial-index="0"
+              lazy
               @error="handleImageError(scope.row)"
-            />
-            <span v-else>无图片</span>
+            >
+              <template #error>
+                <div class="image-error">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div v-else class="no-image">
+              <el-icon><PictureFilled /></el-icon>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="商品名称" show-overflow-tooltip />
+        <el-table-column prop="name" label="商品名称" min-width="200" show-overflow-tooltip sortable>
+          <template #default="scope">
+            <div class="product-name">
+              {{ scope.row.name }}
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column prop="price" label="价格" width="100">
+        <el-table-column prop="price" label="价格" width="100" sortable>
           <template #default="scope">
-            ￥{{ scope.row.price.toFixed(2) }}
+            <span class="price">￥{{ typeof scope.row.price === 'number' ? scope.row.price.toFixed(2) : scope.row.price }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="stock" label="库存" width="80" />
-        <el-table-column prop="sales" label="销量" width="80" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="stock" label="库存" width="140" sortable>
           <template #default="scope">
-            <el-switch
-              v-model="scope.row.status"
-              :active-value="1"
-              :inactive-value="0"
-              @change="handleStatusChange(scope.row)"
-            />
+            <div class="stock-cell">
+              <div class="stock-info">
+                <span :class="{ 'stock-warning': scope.row.stock <= 10 && scope.row.stock > 0, 'stock-danger': scope.row.stock === 0 }">
+                  {{ scope.row.stock }}
+                </span>
+                <el-progress 
+                  :percentage="Math.min(100, (scope.row.stock / 100) * 100)" 
+                  :stroke-width="6" 
+                  :status="scope.row.stock === 0 ? 'exception' : scope.row.stock <= 10 ? 'warning' : 'success'"
+                  class="stock-progress"
+                />
+              </div>
+              <el-tag 
+                v-if="scope.row.stock <= 10 && scope.row.stock > 0" 
+                size="small" 
+                type="warning"
+                effect="plain"
+                class="stock-tag"
+              >
+                不足
+              </el-tag>
+              <el-tag 
+                v-else-if="scope.row.stock === 0" 
+                size="small" 
+                type="danger"
+                effect="plain"
+                class="stock-tag"
+              >
+                缺货
+              </el-tag>
+              <el-tag 
+                v-else 
+                size="small" 
+                type="success"
+                effect="plain"
+                class="stock-tag"
+              >
+                充足
+              </el-tag>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="sales" label="销量" width="100" sortable />
+        <el-table-column prop="status" label="状态" width="140">
+          <template #default="scope">
+            <div class="status-cell">
+              <el-switch
+                v-model="scope.row.status"
+                :active-value="1"
+                :inactive-value="0"
+                @change="handleStatusChange(scope.row)"
+                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #909399;"
+                inline-prompt
+                active-text="上"
+                inactive-text="下"
+                class="status-switch"
+              />
+              <el-tag 
+                :type="scope.row.status === 1 ? 'success' : 'info'" 
+                effect="plain"
+                size="small"
+                class="status-tag"
+              >
+                <el-icon v-if="scope.row.status === 1"><CircleCheckFilled /></el-icon>
+                <el-icon v-else><CircleCloseFilled /></el-icon>
+                {{ scope.row.status === 1 ? '已上架' : '已下架' }}
+              </el-tag>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="180" sortable />
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
             <el-button 
               type="primary" 
               link 
               @click="handleEdit(scope.row)"
             >
-              编辑
+              <el-icon><Edit /></el-icon>编辑
             </el-button>
             <el-button 
               type="danger" 
               link 
               @click="handleDelete(scope.row)"
             >
-              删除
+              <el-icon><Delete /></el-icon>删除
             </el-button>
           </template>
         </el-table-column>
@@ -109,6 +412,7 @@
           layout="total, sizes, prev, pager, next, jumper"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
+          background
         />
       </div>
     </el-card>
@@ -116,11 +420,17 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getProductList, deleteProduct, updateProductStatus } from '../../api/product';
+import { getProductList, deleteProduct, updateProductStatus, batchUpdateProductStatus } from '../../api/product';
 import { getCategoryList } from '../../api/category';
+import { 
+  Search, Refresh, ArrowDown, ArrowUp, Plus, Edit, Delete, 
+  Picture, PictureFilled, Grid, Folder, SetUp, Goods, 
+  Tickets, WarningFilled, RemoveFilled, Select, TurnOff, 
+  Document, CircleCheckFilled, CircleCloseFilled 
+} from '@element-plus/icons-vue';
 
 const router = useRouter();
 
@@ -133,30 +443,172 @@ const productList = ref([]);
 // 分类选项
 const categoryOptions = ref([]);
 
+// 分类分组
+const categoryGroups = ref([]);
+
 // 分页参数
 const currentPage = ref(1);
 const pageSize = ref(10);
 const total = ref(0);
 
+// 高级搜索显示状态
+const showAdvanced = ref(false);
+
+// 当前激活的快速筛选
+const activeFilter = ref('all');
+
+// 表格配置
+const tableConfig = reactive({
+  showImage: true
+});
+
 // 搜索表单
 const searchForm = reactive({
   name: '',
   categoryId: '',
-  status: ''
+  status: '',
+  minPrice: null,
+  maxPrice: null,
+  stockStatus: '',
+  dateRange: []
 });
 
 // 选中的商品ID
 const selectedIds = ref([]);
 
+// 库存不足和缺货商品数量
+const lowStockCount = computed(() => {
+  return productList.value.filter(item => item.stock <= 10 && item.stock > 0).length;
+});
+
+const outOfStockCount = computed(() => {
+  return productList.value.filter(item => item.stock === 0).length;
+});
+
+// 切换高级搜索显示状态
+const toggleAdvanced = () => {
+  showAdvanced.value = !showAdvanced.value;
+};
+
+// 应用快速筛选
+const applyQuickFilter = (filter) => {
+  // 设置当前激活的筛选
+  activeFilter.value = filter;
+  
+  // 重置搜索表单
+  Object.keys(searchForm).forEach(key => {
+    searchForm[key] = key === 'dateRange' ? [] : '';
+  });
+  searchForm.minPrice = null;
+  searchForm.maxPrice = null;
+  
+  // 应用对应的筛选条件
+  switch (filter) {
+    case 'all':
+      // 不需要设置任何条件，使用默认值
+      break;
+    case 'lowStock':
+      searchForm.stockStatus = 'low';
+      break;
+    case 'outOfStock':
+      searchForm.stockStatus = 'out';
+      break;
+    case 'onSale':
+      searchForm.status = 1;
+      break;
+    case 'offSale':
+      searchForm.status = 0;
+      break;
+  }
+  
+  // 执行搜索
+  currentPage.value = 1;
+  fetchProductList();
+};
+
+// 批量操作命令处理
+const handleBatchCommand = (command) => {
+  if (selectedIds.value.length === 0) {
+    ElMessage.warning('请先选择商品');
+    return;
+  }
+  
+  switch (command) {
+    case 'delete':
+      handleBatchDelete();
+      break;
+    case 'onSale':
+      handleBatchStatusChange(1);
+      break;
+    case 'offSale':
+      handleBatchStatusChange(0);
+      break;
+  }
+};
+
+// 批量修改商品状态
+const handleBatchStatusChange = (status) => {
+  const statusText = status === 1 ? '上架' : '下架';
+  
+  ElMessageBox.confirm(`确定要批量${statusText}选中的${selectedIds.value.length}个商品吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      // 调用批量更新状态API
+      await batchUpdateProductStatus(selectedIds.value, status);
+      ElMessage.success(`批量${statusText}成功`);
+      fetchProductList();
+    } catch (error) {
+      console.error(`批量${statusText}失败:`, error);
+      ElMessage.error(`批量${statusText}失败`);
+    }
+  }).catch(() => {});
+};
+
 // 获取商品列表
 const fetchProductList = async () => {
   loading.value = true;
   try {
+    // 处理高级搜索参数
     const params = {
       page: currentPage.value,
       size: pageSize.value,
-      ...searchForm
+      name: searchForm.name,
+      categoryId: searchForm.categoryId,
+      status: searchForm.status
     };
+    
+    // 添加价格范围
+    if (searchForm.minPrice !== null) {
+      params.minPrice = searchForm.minPrice;
+    }
+    if (searchForm.maxPrice !== null) {
+      params.maxPrice = searchForm.maxPrice;
+    }
+    
+    // 添加库存状态
+    if (searchForm.stockStatus) {
+      switch (searchForm.stockStatus) {
+        case 'low':
+          params.maxStock = 10;
+          params.minStock = 1;
+          break;
+        case 'out':
+          params.maxStock = 0;
+          break;
+        case 'normal':
+          params.minStock = 11;
+          break;
+      }
+    }
+    
+    // 添加日期范围
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      params.startDate = searchForm.dateRange[0];
+      params.endDate = searchForm.dateRange[1];
+    }
     
     const response = await getProductList(params);
     
@@ -169,7 +621,9 @@ const fetchProductList = async () => {
           ...item,
           categoryName: category ? category.name : '未分类',
           // 确保状态是数字类型
-          status: typeof item.status === 'string' ? parseInt(item.status) : item.status
+          status: typeof item.status === 'string' ? parseInt(item.status) : item.status,
+          // 确保价格是数字类型
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
         };
       });
       total.value = response.data.total || 0;
@@ -188,8 +642,37 @@ const fetchProductList = async () => {
 // 获取分类列表
 const fetchCategoryList = async () => {
   try {
-    const response = await getCategoryList({ size: 100 });
-    categoryOptions.value = response.data.list || [];
+    const response = await getCategoryList();
+    
+    // 处理基本分类列表
+    if (response.data && response.data.list) {
+      categoryOptions.value = response.data.list || [];
+    }
+    
+    // 处理分类分组
+    // 如果API返回了分组数据，直接使用
+    if (response.data && response.data.groups) {
+      categoryGroups.value = response.data.groups;
+    } 
+    // 否则，尝试从普通列表构建分组
+    else if (categoryOptions.value.length > 0) {
+      // 找出所有父分类
+      const parentCategories = categoryOptions.value.filter(cat => !cat.parent_id);
+      
+      // 为每个父分类找到子分类
+      categoryGroups.value = parentCategories.map(parent => {
+        return {
+          id: parent.id,
+          name: parent.name,
+          children: categoryOptions.value.filter(cat => cat.parent_id === parent.id)
+        };
+      });
+      
+      // 如果没有分组结构，则不使用分组
+      if (categoryGroups.value.every(group => group.children.length === 0)) {
+        categoryGroups.value = [];
+      }
+    }
   } catch (error) {
     console.error('获取分类列表失败:', error);
   }
@@ -204,8 +687,10 @@ const handleSearch = () => {
 // 重置搜索
 const resetSearch = () => {
   Object.keys(searchForm).forEach(key => {
-    searchForm[key] = '';
+    searchForm[key] = key === 'dateRange' ? [] : '';
   });
+  searchForm.minPrice = null;
+  searchForm.maxPrice = null;
   currentPage.value = 1;
   fetchProductList();
 };
@@ -312,11 +797,22 @@ onMounted(() => {
   padding: 20px;
 }
 
-.page-title {
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
+}
+
+.page-title {
   font-size: 22px;
   font-weight: bold;
   color: #303133;
+}
+
+.data-summary {
+  display: flex;
+  gap: 10px;
 }
 
 .search-card {
@@ -324,8 +820,30 @@ onMounted(() => {
 }
 
 .search-form {
+  margin-bottom: 10px;
+}
+
+.search-buttons {
   display: flex;
+  justify-content: flex-start;
+}
+
+.quick-filter {
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
   flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-filter-label {
+  font-size: 14px;
+  color: #606266;
+  margin-right: 8px;
+}
+
+.price-separator {
+  margin: 0 5px;
 }
 
 .table-card {
@@ -335,6 +853,7 @@ onMounted(() => {
 .table-header {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -342,5 +861,236 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+.product-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.price {
+  font-weight: bold;
+  color: #ff6b6b;
+}
+
+.stock-warning {
+  color: #e6a23c;
+  font-weight: bold;
+}
+
+.stock-danger {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.image-error, .no-image {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f7fa;
+  color: #909399;
+  font-size: 24px;
+}
+
+/* 分类和状态选择器增强样式 */
+.category-option,
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.category-option {
+  padding: 6px 0;
+}
+
+.category-icon,
+.status-icon,
+.stock-icon {
+  color: #409EFF;
+}
+
+.stock-normal-icon {
+  color: #67C23A;
+}
+
+.stock-low-icon {
+  color: #E6A23C;
+}
+
+.stock-out-icon {
+  color: #F56C6C;
+}
+
+.category-child-icon {
+  color: #909399;
+  font-size: 14px;
+}
+
+.group-label {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #606266;
+  background-color: #f5f7fa;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+  margin: 4px 0;
+}
+
+.item-count {
+  margin-left: auto;
+  font-size: 11px;
+  border-radius: 10px;
+  padding: 0 6px;
+}
+
+.status-option,
+.stock-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.stock-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-desc,
+.stock-desc {
+  font-size: 12px;
+  color: #909399;
+  margin-left: 8px;
+}
+
+.status-tag-select,
+.stock-tag-select {
+  width: 48px;
+  text-align: center;
+  padding: 0 6px;
+}
+
+:deep(.category-select-dropdown) {
+  max-height: 300px;
+}
+
+:deep(.status-select-dropdown),
+:deep(.stock-select-dropdown) {
+  min-width: 200px !important;
+}
+
+:deep(.el-select-dropdown__item) {
+  padding: 0 12px;
+  height: auto;
+}
+
+:deep(.el-select-group__wrap:not(:last-of-type)) {
+  margin-bottom: 8px;
+}
+
+:deep(.el-select-group__title) {
+  padding: 8px 12px;
+  font-size: 14px;
+  font-weight: bold;
+  color: #606266;
+  background-color: #f5f7fa;
+  margin-bottom: 4px;
+}
+
+:deep(.el-select .el-input__prefix) {
+  display: flex;
+  align-items: center;
+  color: #409EFF;
+}
+
+/* 表格中状态和库存列样式 */
+.stock-cell,
+.status-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stock-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.stock-progress {
+  margin-top: 4px;
+  width: 100%;
+}
+
+.stock-cell {
+  justify-content: space-between;
+}
+
+.status-cell {
+  justify-content: flex-start;
+}
+
+.stock-tag,
+.status-tag {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.status-switch {
+  margin-right: 8px;
+}
+
+/* 快速筛选按钮样式 */
+.filter-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.filter-button {
+  position: relative;
+  transition: all 0.3s;
+}
+
+.filter-button.active {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.filter-button .el-icon {
+  margin-right: 4px;
+}
+
+.filter-badge {
+  margin-left: 4px;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .search-buttons {
+    justify-content: flex-start;
+    margin-top: 10px;
+  }
+  
+  .quick-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .quick-filter-label {
+    margin-bottom: 8px;
+  }
 }
 </style> 
