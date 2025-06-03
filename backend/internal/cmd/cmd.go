@@ -1,15 +1,15 @@
 package cmd
 
 import (
-	"context"
-	"io"
-	"net/http"
-	"strings"
-
-	"backend/internal/controller"
+	"backend/internal/controller/admin"
 	"backend/internal/controller/hello"
+	"backend/internal/controller/order"
+	"backend/internal/controller/print"
+	"backend/internal/controller/product"
+	"backend/internal/controller/qrcode"
+	"backend/internal/controller/user"
 	"backend/internal/middleware"
-	"backend/internal/service"
+	"context"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
@@ -24,89 +24,87 @@ var (
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
 			s := g.Server()
 			s.Group("/", func(group *ghttp.RouterGroup) {
-				group.Middleware(middleware.ResponseWrapper)
+				group.Middleware(
+					middleware.ErrorHandler,
+					middleware.ResponseWrapper,
+				)
+
 				group.Bind(
 					hello.NewV1(),
-					controller.NewWechat(),
+					user.NewV1(),
+					product.NewV1(),
+					order.NewV1(),
+					admin.NewV1(),
+					print.NewV1(),
+					qrcode.NewV1(),
 				)
 			})
 
-			// 需要登录的API组
-			s.Group("/api", func(group *ghttp.RouterGroup) {
-				group.Middleware(middleware.ResponseWrapper)
-				group.Middleware(middleware.JwtAuth)
-				group.Bind(
-					// controller.NewProduct(),
-					controller.NewUser(),
-					controller.NewAdmin(),
-					controller.NewAdminUpload(),
-					controller.NewAdminProduct(),
-					controller.NewAdminCategory(),
-					controller.NewOrder(),
-				)
-			})
-
-			// s.Group("/admin", func(group *ghttp.RouterGroup) {
-			// 	group.Middleware(middleware.ResponseWrapper)
-			// 	group.Bind(
-			// 		controller.NewAdmin(),
-			// 		controller.NewAdminUpload(),
-			// 		controller.NewAdminProduct(),
-			// 		controller.NewAdminCategory(),
-			// 		controller.NewOrder(),
-			// 	)
-			// })
-
-			// 添加存储代理路由，用于访问MinIO中的文件
-			s.Group("/storage", func(group *ghttp.RouterGroup) {
-				// 不使用ResponseWrapper中间件，直接返回文件内容
-				group.GET("/*path", func(r *ghttp.Request) {
-					path := r.Get("path").String()
-					if path == "" {
-						r.Response.WriteStatus(http.StatusNotFound)
-						return
-					}
-
-					// 去掉开头的斜杠
-					path = strings.TrimPrefix(path, "/")
-
-					// 获取MinIO客户端
-					client, err := service.Minio().GetClient(ctx)
-					if err != nil {
-						r.Response.WriteStatus(http.StatusInternalServerError)
-						return
-					}
-
-					// 获取存储桶名称
-					bucketName := service.Minio().GetBucketName(ctx)
-
-					// 获取对象
-					object, err := client.GetObject(ctx, bucketName, path, service.Minio().GetObjectOptions())
-					if err != nil {
-						r.Response.WriteStatus(http.StatusNotFound)
-						return
-					}
-					defer object.Close()
-
-					// 获取对象信息
-					stat, err := object.Stat()
-					if err != nil {
-						r.Response.WriteStatus(http.StatusNotFound)
-						return
-					}
-
-					// 设置响应头
-					r.Response.Header().Set("Content-Type", stat.ContentType)
-					r.Response.Header().Set("Content-Length", g.NewVar(stat.Size).String())
-					r.Response.Header().Set("Cache-Control", "max-age=31536000") // 缓存1年
-
-					// 复制文件内容到响应
-					io.Copy(r.Response.Writer, object)
-				})
-			})
+			s.SetSwaggerUITemplate(ScalarUITemplate)
 
 			s.Run()
 			return nil
 		},
 	}
+)
+
+const (
+	SwaggerUITemplate = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="description" content="SwaggerUI"/>
+	<title>SwaggerUI</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui.min.css" />
+</head>
+<body>
+<div id="swagger-ui"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/5.10.5/swagger-ui-bundle.js" crossorigin></script>
+<script>
+	window.onload = () => {
+		window.ui = SwaggerUIBundle({
+			url:    '{SwaggerUIDocUrl}',
+			dom_id: '#swagger-ui',
+		});
+	};
+</script>
+</body>
+</html>
+`
+
+	OpenapiUITemplate = `
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>openAPI UI</title>
+  </head>
+  <body>
+    <div id="openapi-ui-container" spec-url="{SwaggerUIDocUrl}" theme="light"></div>
+    <script src="https://cdn.jsdelivr.net/npm/openapi-ui-dist@latest/lib/openapi-ui.umd.js"></script>
+  </body>
+</html>
+`
+
+	ScalarUITemplate = `
+<!doctype html>
+<html>
+  <head>
+    <title>Scalar API Reference</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1" />
+  </head>
+  <body>
+    <!-- Need a Custom Header? Check out this example https://codepen.io/scalarorg/pen/VwOXqam -->
+    <script
+      id="api-reference"
+      data-url="{SwaggerUIDocUrl}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+  </body>
+</html>
+`
 )

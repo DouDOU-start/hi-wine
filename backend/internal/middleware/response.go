@@ -1,7 +1,8 @@
 package middleware
 
 import (
-	"github.com/gogf/gf/v2/errors/gerror"
+	"backend/api/common"
+
 	"github.com/gogf/gf/v2/net/ghttp"
 )
 
@@ -10,29 +11,24 @@ func ResponseWrapper(r *ghttp.Request) {
 	// 先执行请求
 	r.Middleware.Next()
 
-	// 如果已经有错误响应，不处理
-	if r.Response.Status >= 400 {
+	// 如果已经有错误响应或者已经被错误处理中间件处理过，不再处理
+	if r.Response.Status >= 400 || r.GetError() != nil {
 		return
 	}
 
 	// 获取原始响应数据
-	var (
-		err  = r.GetError()
-		res  = r.GetHandlerResponse()
-		code = 0
-		msg  = "操作成功"
-	)
+	res := r.GetHandlerResponse()
 
-	if err != nil {
-		code = 500
-		msg = gerror.Current(err).Error()
+	// 如果响应已经是我们期望的格式，不再处理
+	if _, ok := res.(common.Response[any]); ok {
+		return
 	}
 
 	// 包装响应
 	r.Response.ClearBuffer()
-	r.Response.WriteJson(ghttp.DefaultHandlerResponse{
-		Code:    code,
-		Message: msg,
+	r.Response.WriteJson(common.Response[any]{
+		Code:    common.CodeSuccess,
+		Message: "操作成功",
 		Data:    res,
 	})
 }
