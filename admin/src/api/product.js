@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取商品列表
 export function getProductList(params) {
   return request({
-    url: '/api/admin/product/list',
+    url: '/api/product/list',
     method: 'get',
     params
   });
@@ -12,7 +12,7 @@ export function getProductList(params) {
 // 添加商品
 export function addProduct(data) {
   return request({
-    url: '/api/admin/product/add',
+    url: '/api/product/add',
     method: 'post',
     data
   });
@@ -21,7 +21,7 @@ export function addProduct(data) {
 // 更新商品
 export function updateProduct(data) {
   return request({
-    url: '/api/admin/product/update',
+    url: '/api/product/update',
     method: 'post',
     data
   });
@@ -30,7 +30,7 @@ export function updateProduct(data) {
 // 删除商品
 export function deleteProduct(id) {
   return request({
-    url: '/api/admin/product/delete',
+    url: '/api/product/delete',
     method: 'post',
     data: { id }
   });
@@ -39,7 +39,7 @@ export function deleteProduct(id) {
 // 获取商品详情
 export function getProductDetail(id) {
   return request({
-    url: '/api/admin/product/detail',
+    url: '/api/product/detail',
     method: 'get',
     params: { id }
   });
@@ -48,7 +48,7 @@ export function getProductDetail(id) {
 // 上下架商品
 export function updateProductStatus(id, status) {
   return request({
-    url: '/api/admin/product/status',
+    url: '/api/product/status',
     method: 'post',
     data: { id, status }
   });
@@ -57,7 +57,7 @@ export function updateProductStatus(id, status) {
 // 批量更新商品状态
 export function batchUpdateProductStatus(ids, status) {
   return request({
-    url: '/api/admin/product/batch-status',
+    url: '/api/product/batch-status',
     method: 'post',
     data: { ids, status }
   });

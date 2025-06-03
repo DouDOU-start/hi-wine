@@ -36,7 +36,7 @@
                   v-for="item in categoryOptions"
                   :key="item.id"
                   :label="item.name"
-                  :value="item.id"
+                  :value="String(item.id)"
                 />
               </el-select>
             </el-form-item>
@@ -166,9 +166,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Check, Refresh, Close, Back } from '@element-plus/icons-vue';
 import { addProduct, updateProduct, getProductDetail } from '../../api/product';
 import { getCategoryList } from '../../api/category';
@@ -249,15 +249,27 @@ const fetchProductDetail = async (id) => {
           form[key] = product[key];
         }
       });
+      form.categoryId = String(product.category_id || product.categoryId || '');
       ElMessage.success('商品信息加载成功');
+      // 赋值后刷新表单校验
+      if (formRef.value) {
+        formRef.value.clearValidate();
+      }
     } else {
       ElMessage.error('商品信息不存在');
       goBack();
     }
   } catch (error) {
     console.error('获取商品详情失败:', error);
-    ElMessage.error('获取商品详情失败');
-    goBack();
+    ElMessageBox.confirm('商品信息加载失败，是否重试？', '提示', {
+      confirmButtonText: '重试',
+      cancelButtonText: '返回列表',
+      type: 'warning'
+    }).then(() => {
+      fetchProductDetail(id);
+    }).catch(() => {
+      goBack();
+    });
   }
 };
 
@@ -307,10 +319,11 @@ const submitForm = () => {
       if (isEdit.value) {
         await updateProduct(form);
         ElMessage.success('商品更新成功');
+        goBack();
       } else {
         await addProduct(form);
         ElMessage.success('商品添加成功');
-        resetForm();
+        goBack();
       }
     } catch (error) {
       console.error('操作失败:', error);
@@ -350,11 +363,30 @@ const goBack = () => {
 // 页面加载时获取数据
 onMounted(async () => {
   await fetchCategoryList();
-  
   if (isEdit.value) {
     await fetchProductDetail(route.params.id);
+  } else {
+    // 添加商品时，重置form为初始空值
+    form.id = '';
+    form.name = '';
+    form.categoryId = '';
+    form.price = 0;
+    form.stock = 0;
+    form.image = '';
+    form.status = 1;
+    form.description = '';
   }
 });
+
+// 新增：监听路由参数变化，动态获取详情
+watch(
+  () => route.params.id,
+  async (newId, oldId) => {
+    if (isEdit.value && newId && newId !== oldId) {
+      await fetchProductDetail(newId);
+    }
+  }
+);
 </script>
 
 <style scoped>

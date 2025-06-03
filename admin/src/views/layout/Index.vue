@@ -17,10 +17,10 @@
         :collapse-transition="false"
         router
       >
-        <el-menu-item index="/dashboard">
+        <!-- <el-menu-item index="/dashboard">
           <el-icon><component :is="'Odometer'" /></el-icon>
           <template #title>仪表盘</template>
-        </el-menu-item>
+        </el-menu-item> -->
         
         <el-sub-menu index="/product">
           <template #title>

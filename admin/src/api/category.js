@@ -3,7 +3,7 @@ import request from '../utils/request';
 // 获取分类列表
 export function getCategoryList(params) {
   return request({
-    url: '/api/admin/category/list',
+    url: '/api/category/list',
     method: 'get',
     params
   });
@@ -12,7 +12,7 @@ export function getCategoryList(params) {
 // 添加分类
 export function addCategory(data) {
   return request({
-    url: '/api/admin/category/add',
+    url: '/api/category/add',
     method: 'post',
     data
   });
@@ -21,7 +21,7 @@ export function addCategory(data) {
 // 更新分类
 export function updateCategory(data) {
   return request({
-    url: '/api/admin/category/update',
+    url: '/api/category/update',
     method: 'post',
     data
   });
@@ -30,7 +30,7 @@ export function updateCategory(data) {
 // 删除分类
 export function deleteCategory(id) {
   return request({
-    url: '/api/admin/category/delete',
+    url: '/api/category/delete',
     method: 'post',
     data: { id }
   });
@@ -39,7 +39,7 @@ export function deleteCategory(id) {
 // 获取分类详情
 export function getCategoryDetail(id) {
   return request({
-    url: '/api/admin/category/detail',
+    url: '/api/category/detail',
     method: 'get',
     params: { id }
   });

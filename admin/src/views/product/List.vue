@@ -30,7 +30,7 @@
                 <template #prefix>
                   <el-icon class="category-icon"><Grid /></el-icon>
                 </template>
-                <el-option-group v-if="categoryGroups.length > 0" v-for="group in categoryGroups" :key="group.id" :label="group.name">
+                <el-option-group v-for="group in categoryGroups" :key="group.id" :label="group.name">
                   <div class="group-label">
                     <el-icon><Folder /></el-icon>
                     {{ group.name }}
@@ -47,20 +47,6 @@
                     </div>
                   </el-option>
                 </el-option-group>
-                <template v-else>
-                  <el-option
-                    v-for="item in categoryOptions"
-                    :key="item.id"
-                    :label="item.name"
-                    :value="item.id"
-                  >
-                    <div class="category-option">
-                      <el-icon class="category-icon"><Folder /></el-icon>
-                      <span>{{ item.name }}</span>
-                      <el-tag size="small" type="info" class="item-count" v-if="item.count">{{ item.count }}</el-tag>
-                    </div>
-                  </el-option>
-                </template>
               </el-select>
             </el-form-item>
           </el-col>
@@ -279,12 +265,13 @@
             <el-image 
               v-if="scope.row.image" 
               :src="scope.row.image" 
-              style="width: 60px; height: 60px"
+              style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;"
               fit="cover"
               :preview-src-list="[scope.row.image]"
               :initial-index="0"
               lazy
               @error="handleImageError(scope.row)"
+              preview-teleported
             >
               <template #error>
                 <div class="image-error">
@@ -292,7 +279,7 @@
                 </div>
               </template>
             </el-image>
-            <div v-else class="no-image">
+            <div v-else class="no-image" style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: #f5f7fa; color: #909399; border-radius: 6px;">
               <el-icon><PictureFilled /></el-icon>
             </div>
           </template>
@@ -643,35 +630,11 @@ const fetchProductList = async () => {
 const fetchCategoryList = async () => {
   try {
     const response = await getCategoryList();
-    
-    // 处理基本分类列表
+    // 直接用树形结构
     if (response.data && response.data.list) {
-      categoryOptions.value = response.data.list || [];
-    }
-    
-    // 处理分类分组
-    // 如果API返回了分组数据，直接使用
-    if (response.data && response.data.groups) {
-      categoryGroups.value = response.data.groups;
-    } 
-    // 否则，尝试从普通列表构建分组
-    else if (categoryOptions.value.length > 0) {
-      // 找出所有父分类
-      const parentCategories = categoryOptions.value.filter(cat => !cat.parent_id);
-      
-      // 为每个父分类找到子分类
-      categoryGroups.value = parentCategories.map(parent => {
-        return {
-          id: parent.id,
-          name: parent.name,
-          children: categoryOptions.value.filter(cat => cat.parent_id === parent.id)
-        };
-      });
-      
-      // 如果没有分组结构，则不使用分组
-      if (categoryGroups.value.every(group => group.children.length === 0)) {
-        categoryGroups.value = [];
-      }
+      categoryGroups.value = response.data.list; // 用于分组渲染
+      // 扁平化所有分组和子分类，便于查找分类名
+      categoryOptions.value = response.data.list.flatMap(group => [group, ...(group.children || [])]);
     }
   } catch (error) {
     console.error('获取分类列表失败:', error);
