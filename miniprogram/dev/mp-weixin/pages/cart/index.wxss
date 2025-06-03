@@ -1,0 +1,105 @@
+
+.cart-container.data-v-8039fbf1 {
+  min-height: 100vh;
+  background: #f8f6f4;
+  padding-bottom: 40rpx;
+}
+.cart-header.data-v-8039fbf1 {
+  padding: 60rpx 0 20rpx 0;
+  text-align: center;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #222;
+  letter-spacing: 2rpx;
+}
+.cart-empty.data-v-8039fbf1 {
+  text-align: center;
+  color: #b8b8b8;
+  margin-top: 120rpx;
+  font-size: 32rpx;
+}
+.cart-list.data-v-8039fbf1 {
+  padding: 0 24rpx;
+}
+.cart-item.data-v-8039fbf1 {
+  display: flex;
+  background: #fff;
+  border-radius: 32rpx;
+  box-shadow: 0 4rpx 24rpx #eaeaea;
+  margin-bottom: 24rpx;
+  overflow: hidden;
+}
+.cart-img.data-v-8039fbf1 {
+  width: 180rpx;
+  height: 140rpx;
+  object-fit: cover;
+  border-top-left-radius: 32rpx;
+  border-bottom-left-radius: 32rpx;
+}
+.cart-info.data-v-8039fbf1 {
+  flex: 1;
+  padding: 20rpx 24rpx 0 24rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.cart-name.data-v-8039fbf1 {
+  font-size: 32rpx;
+  color: #222;
+  font-weight: 500;
+}
+.cart-price.data-v-8039fbf1 {
+  font-size: 28rpx;
+  color: #f7cac9;
+  font-weight: bold;
+  margin-bottom: 8rpx;
+}
+.cart-ctrl.data-v-8039fbf1 {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  margin-bottom: 12rpx;
+}
+.cart-btn.data-v-8039fbf1 {
+  width: 48rpx;
+  height: 48rpx;
+  border-radius: 50%;
+  background: #f7cac9;
+  color: #fff;
+  border: none;
+  font-size: 32rpx;
+  font-weight: bold;
+  line-height: 48rpx;
+  text-align: center;
+}
+.cart-del.data-v-8039fbf1 {
+  background: #eee;
+  color: #b8b8b8;
+  border: none;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+  padding: 0 16rpx;
+  margin-left: 10rpx;
+}
+.cart-footer.data-v-8039fbf1 {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 24rpx;
+  margin-top: 30rpx;
+}
+.cart-total.data-v-8039fbf1 {
+  font-size: 36rpx;
+  color: #f7cac9;
+  font-weight: bold;
+}
+.cart-order.data-v-8039fbf1 {
+  background: linear-gradient(90deg, #f7cac9 0%, #92a8d1 100%);
+  color: #fff;
+  border: none;
+  border-radius: 24rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  padding: 8rpx 36rpx;
+  box-shadow: 0 2rpx 8rpx #e0e0e0;
+}

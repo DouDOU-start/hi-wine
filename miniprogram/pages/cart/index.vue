@@ -23,17 +23,6 @@
       </view>
     </view>
     
-    <!-- 下单确认弹窗 -->
-    <uni-popup ref="popup" type="dialog">
-      <uni-popup-dialog
-        title="确认下单"
-        content="确定要提交订单吗？"
-        :before-close="true"
-        @confirm="submitOrder"
-        @close="closePopup"
-      ></uni-popup-dialog>
-    </uni-popup>
-    
     <!-- 加载中 -->
     <uni-popup ref="loading" type="dialog" :mask-click="false">
       <uni-popup-dialog
@@ -43,6 +32,10 @@
         :before-close="true"
       ></uni-popup-dialog>
     </uni-popup>
+
+    <picker :range="tableList" range-key="name" @change="onTableChange">
+      <view class="picker">请选择桌台：{{ selectedTableId ? (tableList.find(t => t.id === selectedTableId)?.name || '') : '未选择' }}</view>
+    </picker>
   </view>
 </template>
 
@@ -54,6 +47,8 @@ export default {
   data() {
     return {
       cart: [],
+      tableList: [],
+      selectedTableId: null,
       IMG_BASE_URL,
       submitting: false
     };
@@ -67,7 +62,19 @@ export default {
     // 每次显示页面时，从本地存储读取购物车数据
     this.loadCartData();
   },
+  onLoad() {
+    this.fetchTableList();
+  },
   methods: {
+    async fetchTableList() {
+      const res = await uni.request({ url: 'http://你的后端地址/api/table/list' });
+      if (res.data.code === 0) {
+        this.tableList = res.data.data || [];
+      }
+    },
+    onTableChange(e) {
+      this.selectedTableId = this.tableList[e.detail.value].id;
+    },
     // 加载购物车数据
     loadCartData() {
       const cartData = uni.getStorageSync('cart') || [];
@@ -120,64 +127,47 @@ export default {
         return;
       }
       
-      this.$refs.popup.open();
-    },
-    
-    // 关闭弹窗
-    closePopup() {
-      this.$refs.popup.close();
+      uni.showModal({
+        title: '确认下单',
+        content: '确定要提交订单吗？',
+        success: (res) => {
+          if (res.confirm) {
+            this.submitOrder();
+          }
+        }
+      });
     },
     
     // 提交订单
     async submitOrder() {
-      if (this.submitting) return;
-      
+      if (this.cart.length === 0) {
+        uni.showToast({ title: '购物车为空', icon: 'none' });
+        return;
+      }
       this.submitting = true;
-      this.$refs.loading.open();
-      
+      uni.showLoading({ title: '订单提交中...', mask: true });
       try {
-        // 将购物车商品转换为订单项
         const items = this.cart.map(item => ({
           productId: item.id,
           quantity: item.count
         }));
-        
-        // 调用创建订单API
-        const res = await api.createOrder(0, items);
-        console.log('订单创建响应:', JSON.stringify(res));
-        
+        const res = await api.createOrder(this.selectedTableId || 0, items);
         if (res && res.code === 0 && res.data && res.data.id) {
-          // 清空购物车
           this.cart = [];
           this.updateCartStorage();
-          
-          // 关闭加载弹窗
-          this.$refs.loading.close();
-          
-          // 显示成功提示
-          uni.showToast({
-            title: '下单成功',
-            icon: 'success'
-          });
-          
-          // 跳转到订单页面
+          uni.hideLoading();
+          uni.showToast({ title: '下单成功', icon: 'success' });
           setTimeout(() => {
-            uni.switchTab({
-              url: '/pages/order/index'
-            });
+            uni.switchTab({ url: '/pages/order/index' });
           }, 1500);
         } else {
           throw new Error('创建订单失败');
         }
       } catch (err) {
-        console.error('下单失败', err);
-        uni.showToast({
-          title: '下单失败，请重试',
-          icon: 'none'
-        });
+        uni.showToast({ title: '下单失败，请重试', icon: 'none' });
       } finally {
         this.submitting = false;
-        this.$refs.loading.close();
+        uni.hideLoading();
       }
     }
   }

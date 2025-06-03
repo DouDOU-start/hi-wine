@@ -1,0 +1,37 @@
+[
+  {
+    "id": 1,
+    "name": "赤霞珠干红",
+    "price": 128,
+    "img": "/wine.png",
+    "category": "红酒"
+  },
+  {
+    "id": 2,
+    "name": "霞多丽白葡萄酒",
+    "price": 98,
+    "img": "/wine.png",
+    "category": "白酒"
+  },
+  {
+    "id": 3,
+    "name": "精酿IPA啤酒",
+    "price": 38,
+    "img": "/wine.png",
+    "category": "啤酒"
+  },
+  {
+    "id": 4,
+    "name": "莫吉托",
+    "price": 58,
+    "img": "/wine.png",
+    "category": "鸡尾酒"
+  },
+  {
+    "id": 5,
+    "name": "梅洛干红",
+    "price": 108,
+    "img": "/wine.png",
+    "category": "红酒"
+  }
+] 

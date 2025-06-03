@@ -1,5 +1,5 @@
 // api.js - API请求工具类
-import { BASE_URL, APP_ID } from '@/config.js';
+import { BASE_URL } from '@/config.js';
 
 // 获取存储的token
 const getToken = () => {
