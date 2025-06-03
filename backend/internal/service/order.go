@@ -40,8 +40,10 @@ func (s *sOrder) Create(ctx context.Context, req *api.OrderCreateReq) (res *api.
 		order := &entity.Order{
 			UserId:      gconv.Int64(userId),
 			TableId:     req.TableId,
-			TotalAmount: 0, // 初始金额为0，后续计算
-			Status:      0, // 0待支付
+			TotalAmount: 0,           // 初始金额为0，后续计算
+			Status:      0,           // 0待支付
+			CreateTime:  gtime.Now(), // 设置创建时间
+			UpdateTime:  gtime.Now(), // 设置更新时间
 		}
 
 		// 插入订单并获取ID

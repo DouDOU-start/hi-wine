@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/net/ghttp"
-	"github.com/gogf/gf/v2/os/gcmd"
-
 	"backend/internal/controller"
 	"backend/internal/controller/hello"
 	"backend/internal/middleware"
 	"backend/internal/service"
+
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
+	"github.com/gogf/gf/v2/os/gcmd"
 )
 
 var (
@@ -36,21 +36,26 @@ var (
 				group.Middleware(middleware.ResponseWrapper)
 				group.Middleware(middleware.JwtAuth)
 				group.Bind(
-					controller.NewProduct(),
-					controller.NewOrder(),
+					// controller.NewProduct(),
 					controller.NewUser(),
-				)
-			})
-
-			s.Group("/admin", func(group *ghttp.RouterGroup) {
-				group.Middleware(middleware.ResponseWrapper)
-				group.Bind(
 					controller.NewAdmin(),
 					controller.NewAdminUpload(),
 					controller.NewAdminProduct(),
 					controller.NewAdminCategory(),
+					controller.NewOrder(),
 				)
 			})
+
+			// s.Group("/admin", func(group *ghttp.RouterGroup) {
+			// 	group.Middleware(middleware.ResponseWrapper)
+			// 	group.Bind(
+			// 		controller.NewAdmin(),
+			// 		controller.NewAdminUpload(),
+			// 		controller.NewAdminProduct(),
+			// 		controller.NewAdminCategory(),
+			// 		controller.NewOrder(),
+			// 	)
+			// })
 
 			// 添加存储代理路由，用于访问MinIO中的文件
 			s.Group("/storage", func(group *ghttp.RouterGroup) {
@@ -63,9 +68,7 @@ var (
 					}
 
 					// 去掉开头的斜杠
-					if strings.HasPrefix(path, "/") {
-						path = path[1:]
-					}
+					path = strings.TrimPrefix(path, "/")
 
 					// 获取MinIO客户端
 					client, err := service.Minio().GetClient(ctx)
