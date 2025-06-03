@@ -3,12 +3,29 @@ package admin
 import (
 	"context"
 
-	"github.com/gogf/gf/v2/errors/gcode"
-	"github.com/gogf/gf/v2/errors/gerror"
-
-	"backend/api/admin/v1"
+	v1 "backend/api/admin/v1"
+	"backend/api/common"
+	"backend/internal/service"
 )
 
 func (c *ControllerV1) AdminProductList(ctx context.Context, req *v1.AdminProductListReq) (res *v1.AdminProductListRes, err error) {
-	return nil, gerror.NewCode(gcode.CodeNotImplemented)
+	// 创建响应对象
+	res = &v1.AdminProductListRes{}
+
+	// 调用商品服务获取列表
+	productService := &service.Product{}
+	list, total, err := productService.List(ctx, req)
+	if err != nil {
+		res.Code = common.CodeServerError
+		res.Message = err.Error()
+		return res, nil
+	}
+
+	// 设置响应数据
+	res.Code = common.CodeSuccess
+	res.Message = "获取商品列表成功"
+	res.Data.List = list
+	res.Data.Total = total
+
+	return res, nil
 }

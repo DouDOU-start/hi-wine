@@ -32,7 +32,7 @@ type AdminProductCreateReq struct {
 	CategoryID  int64   `json:"category_id" v:"required#分类必填"`
 	Price       float64 `json:"price" v:"required#价格必填"`
 	Stock       int     `json:"stock" v:"required#库存必填"`
-	ImageURL    string  `json:"image_url"`
+	ImageURL    string  `json:"image_url" v:"required#商品图片必填"`
 	Description string  `json:"description"`
 	IsActive    *bool   `json:"is_active"`
 }

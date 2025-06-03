@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"backend/internal/controller/admin"
+	"backend/internal/controller/file"
 	"backend/internal/controller/hello"
 	"backend/internal/controller/order"
 	"backend/internal/controller/print"
@@ -9,6 +10,7 @@ import (
 	"backend/internal/controller/qrcode"
 	"backend/internal/controller/user"
 	"backend/internal/middleware"
+	"backend/internal/utility/minio"
 	"context"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -23,6 +25,13 @@ var (
 		Brief: "start http server",
 		Func: func(ctx context.Context, parser *gcmd.Parser) (err error) {
 			s := g.Server()
+
+			// 初始化MinIO客户端
+			if err := minio.Init(); err != nil {
+				g.Log().Fatal(ctx, "MinIO初始化失败: ", err)
+			}
+			g.Log().Info(ctx, "MinIO初始化成功")
+
 			s.Group("/", func(group *ghttp.RouterGroup) {
 				group.Middleware(
 					middleware.ErrorHandler,
@@ -37,6 +46,7 @@ var (
 					admin.NewV1(),
 					print.NewV1(),
 					qrcode.NewV1(),
+					file.NewV1(),
 				)
 			})
 
