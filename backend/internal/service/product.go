@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"strings"
 
 	v1 "backend/api/admin/v1"
 	productv1 "backend/api/product/v1"
 	"backend/internal/dao"
 	"backend/internal/model/entity"
+	"backend/internal/utility/minio"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
@@ -210,9 +212,50 @@ func (s *Product) Delete(ctx context.Context, id int64) error {
 		return gerror.New("该商品已有订单关联，无法删除")
 	}
 
-	// 删除商品
+	// 获取商品图片URL，用于后续删除文件
+	var productEntity *entity.Products
+	err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&productEntity)
+	if err != nil {
+		return err
+	}
+
+	imageURL := productEntity.ImageUrl
+
+	// 删除商品记录
 	_, err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Delete()
-	return err
+	if err != nil {
+		return err
+	}
+
+	// 如果有图片，则删除图片文件
+	if imageURL != "" {
+		// 从URL中提取文件路径
+		// 图片URL格式为: http://domain/api/v1/file/directory/filename.ext 或 http://domain/file/directory/filename.ext
+		// 需要提取的是 directory/filename.ext 部分
+		var objectName string
+
+		if strings.Contains(imageURL, "/api/v1/file/") {
+			objectName = strings.TrimPrefix(imageURL, strings.Split(imageURL, "/api/v1/file/")[0]+"/api/v1/file/")
+		} else if strings.Contains(imageURL, "/file/") {
+			objectName = strings.TrimPrefix(imageURL, strings.Split(imageURL, "/file/")[0]+"/file/")
+		}
+
+		if objectName != "" {
+			// 获取MinIO客户端
+			minioClient := minio.GetClient()
+			if minioClient != nil {
+				// 删除文件，忽略可能的错误
+				deleteErr := minioClient.DeleteFile(ctx, objectName)
+				if deleteErr != nil {
+					g.Log().Warning(ctx, "删除商品图片失败: ", deleteErr, ", 文件路径: ", objectName)
+				} else {
+					g.Log().Info(ctx, "成功删除商品图片: ", objectName)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // GetByID 根据ID获取商品
