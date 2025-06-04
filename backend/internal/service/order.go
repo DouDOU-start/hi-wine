@@ -107,11 +107,13 @@ func (s *orderService) CreateOrder(ctx context.Context, req *orderv1.CreateOrder
 		}
 
 		// 3.5 检查用户是否有有效的畅饮套餐
+		// 注意：只有状态为 active 的套餐才能被用于畅饮，pending 状态的套餐（未支付）不能使用
+		// 用户必须先完成支付，套餐状态变为 active 后才能享受畅饮
 		var userPackage *entity.UserPackages
 		err = tx.Model(dao.UserPackages.Table()).
 			Where(dao.UserPackages.Columns().UserId, userId).
-			Where(dao.UserPackages.Columns().Status, "active").
-			Where(dao.UserPackages.Columns().EndTime+" >= ?", gtime.Now()).
+			Where(dao.UserPackages.Columns().Status, "active").            // 只查询已激活的套餐
+			Where(dao.UserPackages.Columns().EndTime+" > ?", gtime.Now()). // 确保套餐未过期
 			Scan(&userPackage)
 		if err != nil {
 			return err
@@ -609,6 +611,8 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderId int64, sta
 		}
 
 		// 3.3 如果订单状态更新为已支付，则激活相关的套餐
+		// 重要：用户套餐必须支付成功后才能激活，只有激活的套餐才能享受畅饮
+		// 这里实现了"先支付后畅饮"的业务逻辑
 		if updateToPaid {
 			// 检查该订单是否关联套餐购买
 			var packageCount int

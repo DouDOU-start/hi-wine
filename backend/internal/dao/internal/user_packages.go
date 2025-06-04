@@ -25,7 +25,7 @@ type UserPackagesColumns struct {
 	UserId    string // 关联用户ID
 	PackageId string // 关联畅饮套餐ID
 	OrderId   string // 关联购买此套餐的订单ID
-	StartTime string // 套餐开始时间
+	StartTime string // 套餐开始时间（首次使用时激活）
 	EndTime   string // 套餐结束时间（根据duration_minutes计算）
 	Status    string // 套餐状态
 	CreatedAt string // 创建时间

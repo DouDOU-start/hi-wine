@@ -99,7 +99,6 @@ CREATE TABLE `user_packages` (
     `start_time` DATETIME NULL COMMENT '套餐开始时间（首次使用时激活）',
     `end_time` DATETIME NULL COMMENT '套餐结束时间（根据duration_minutes计算）',
     `status` ENUM('active', 'expired', 'refunded', 'pending') NOT NULL DEFAULT 'pending' COMMENT '套餐状态',
-    `is_activated` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已激活（首次使用时激活）',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     CONSTRAINT `fk_user_packages_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),

@@ -37,6 +37,7 @@ type UserPackageServiceForUser interface {
 
 	// 购买套餐
 	// 创建套餐购买订单，套餐状态为待支付(pending)，支付成功后才会激活套餐
+	// 在套餐时效内，用户不可重复购买套餐；如有待支付套餐，也不能购买新套餐
 	BuyPackage(ctx context.Context, userId int64, packageId int64) (orderId int64, err error)
 }
 
@@ -252,6 +253,37 @@ func (s *userPackageServiceForUser) GetPackageDetail(ctx context.Context, packag
 func (s *userPackageServiceForUser) BuyPackage(ctx context.Context, userId int64, packageId int64) (orderId int64, err error) {
 	// 开启事务
 	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 0.1 检查用户是否已有有效套餐
+		var activePackageCount int
+		activePackageCount, err = tx.Model(dao.UserPackages.Table()).
+			Where(dao.UserPackages.Columns().UserId, userId).
+			Where(dao.UserPackages.Columns().Status, "active").
+			Where(dao.UserPackages.Columns().EndTime+" > ?", gtime.Now()).
+			Count()
+		if err != nil {
+			return err
+		}
+
+		// 如果用户已有有效套餐，则不允许重复购买
+		if activePackageCount > 0 {
+			return gerror.New("您已有有效套餐，不能重复购买")
+		}
+
+		// 0.2 检查用户是否有待支付的套餐
+		var pendingPackageCount int
+		pendingPackageCount, err = tx.Model(dao.UserPackages.Table()).
+			Where(dao.UserPackages.Columns().UserId, userId).
+			Where(dao.UserPackages.Columns().Status, "pending").
+			Count()
+		if err != nil {
+			return err
+		}
+
+		// 如果用户有待支付的套餐，则提示用户先完成支付
+		if pendingPackageCount > 0 {
+			return gerror.New("您有待支付的套餐订单，请先完成支付")
+		}
+
 		// 1. 查询套餐信息
 		var packageInfo entity.DrinkAllYouCanPackages
 		err = tx.Model(dao.DrinkAllYouCanPackages.Table()).
