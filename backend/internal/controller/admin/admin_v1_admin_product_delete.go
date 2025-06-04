@@ -13,8 +13,7 @@ func (c *ControllerV1) AdminProductDelete(ctx context.Context, req *v1.AdminProd
 	res = &v1.AdminProductDeleteRes{}
 
 	// 调用商品服务删除商品
-	productService := &service.Product{}
-	err = productService.Delete(ctx, req.ProductID)
+	err = service.Product().Delete(ctx, req.ProductID)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()

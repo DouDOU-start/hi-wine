@@ -29,27 +29,6 @@ type OrderItem struct {
 	Notes         string  `json:"notes,omitempty"`
 }
 
-// 创建订单
-type CreateOrderReq struct {
-	g.Meta        `path:"/orders" method:"post" tags:"订单" summary:"创建订单"`
-	TableQrcodeID int64              `json:"table_qrcode_id" v:"required#桌号二维码ID必填"`
-	Items         []OrderItemRequest `json:"items" v:"required#订单商品不能为空"`
-	TotalNotes    string             `json:"total_notes,omitempty"`
-}
-type OrderItemRequest struct {
-	ProductID int64  `json:"product_id" v:"required#商品ID必填"`
-	Quantity  int    `json:"quantity" v:"required#数量必填"`
-	Notes     string `json:"notes,omitempty"`
-}
-type CreateOrderRes struct {
-	common.Response[struct {
-		OrderID     int64   `json:"order_id"`
-		OrderSN     string  `json:"order_sn"`
-		TotalAmount float64 `json:"total_amount"`
-		PrepayID    string  `json:"prepay_id"`
-	}] `json:",inline"`
-}
-
 // 获取用户订单列表
 type UserOrderListReq struct {
 	g.Meta `path:"/user/orders" method:"get" tags:"订单" summary:"获取当前登录用户的所有订单列表"`

@@ -13,8 +13,7 @@ func (c *ControllerV1) AdminProductList(ctx context.Context, req *v1.AdminProduc
 	res = &v1.AdminProductListRes{}
 
 	// 调用商品服务获取列表
-	productService := &service.Product{}
-	list, total, err := productService.List(ctx, req)
+	list, total, err := service.Product().List(ctx, req)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()

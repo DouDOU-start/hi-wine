@@ -2,6 +2,7 @@ package v1
 
 import (
 	"backend/api/common"
+	orderv1 "backend/api/order/v1"
 
 	"github.com/gogf/gf/v2/frame/g"
 )
@@ -9,15 +10,19 @@ import (
 // 管理端-订单分组
 
 type AdminOrder struct {
-	ID            int64   `json:"id"`
-	OrderSN       string  `json:"order_sn"`
-	UserID        int64   `json:"user_id"`
-	TableQrcodeID int64   `json:"table_qrcode_id"`
-	TotalAmount   float64 `json:"total_amount"`
-	PaymentStatus string  `json:"payment_status"`
-	OrderStatus   string  `json:"order_status"`
-	CreatedAt     string  `json:"created_at"`
-	UpdatedAt     string  `json:"updated_at"`
+	ID            int64               `json:"id"`
+	OrderSN       string              `json:"order_sn"`
+	UserID        int64               `json:"user_id"`
+	TableQrcodeID int64               `json:"table_qrcode_id"`
+	TableNumber   string              `json:"table_number,omitempty"` // 桌号
+	TotalAmount   float64             `json:"total_amount"`
+	PaymentStatus string              `json:"payment_status"`
+	OrderStatus   string              `json:"order_status"`
+	CreatedAt     string              `json:"created_at"`
+	UpdatedAt     string              `json:"updated_at"`
+	PaidAt        string              `json:"paid_at,omitempty"`     // 支付时间
+	Items         []orderv1.OrderItem `json:"items,omitempty"`       // 订单项列表
+	TotalNotes    string              `json:"total_notes,omitempty"` // 订单备注
 }
 
 // 获取订单列表（分页、筛选、模糊搜索）

@@ -13,13 +13,48 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
+	"github.com/gogf/gf/v2/util/gconv"
 )
 
-// Product 商品服务
-type Product struct{}
+// ProductService 商品服务接口
+type ProductService interface {
+	// 管理端接口
+	// List 获取商品列表（分页、筛选、模糊搜索）
+	List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.Product, total int, err error)
+
+	// GetByID 根据ID获取商品
+	GetByID(ctx context.Context, id int64) (*productv1.Product, error)
+
+	// Create 创建商品
+	Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.Product, error)
+
+	// Update 更新商品
+	Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.Product, error)
+
+	// Delete 删除商品
+	Delete(ctx context.Context, id int64) error
+
+	// 用户端接口
+	// GetProductsByCategory 获取某分类下的商品列表
+	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (list []productv1.UserProduct, total int, err error)
+
+	// GetProductDetail 获取商品详情
+	GetProductDetail(ctx context.Context, id int64) (*productv1.UserProductDetail, error)
+}
+
+// 商品服务实现
+type productService struct{}
+
+// 单例实例
+var productServiceInstance = productService{}
+
+// Product 获取商品服务实例
+func Product() ProductService {
+	return &productServiceInstance
+}
 
 // List 获取商品列表（分页、筛选、模糊搜索）
-func (s *Product) List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.Product, total int, err error) {
+func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.Product, total int, err error) {
 	// 构建查询条件
 	m := dao.Products.Ctx(ctx)
 
@@ -84,7 +119,7 @@ func (s *Product) List(ctx context.Context, req *v1.AdminProductListReq) (list [
 }
 
 // Create 创建商品
-func (s *Product) Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.Product, error) {
+func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.Product, error) {
 	// 检查分类是否存在
 	categoryDao := &Category{}
 	category, err := categoryDao.GetByID(ctx, req.CategoryID)
@@ -131,7 +166,7 @@ func (s *Product) Create(ctx context.Context, req *v1.AdminProductCreateReq) (*p
 }
 
 // Update 更新商品
-func (s *Product) Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.Product, error) {
+func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.Product, error) {
 	// 检查商品是否存在
 	product, err := s.GetByID(ctx, req.ProductID)
 	if err != nil {
@@ -193,7 +228,7 @@ func (s *Product) Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*p
 }
 
 // Delete 删除商品
-func (s *Product) Delete(ctx context.Context, id int64) error {
+func (s *productService) Delete(ctx context.Context, id int64) error {
 	// 检查商品是否存在
 	product, err := s.GetByID(ctx, id)
 	if err != nil {
@@ -259,7 +294,7 @@ func (s *Product) Delete(ctx context.Context, id int64) error {
 }
 
 // GetByID 根据ID获取商品
-func (s *Product) GetByID(ctx context.Context, id int64) (*productv1.Product, error) {
+func (s *productService) GetByID(ctx context.Context, id int64) (*productv1.Product, error) {
 	var product *entity.Products
 	err := dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&product)
 	if err != nil {
@@ -277,4 +312,74 @@ func (s *Product) GetByID(ctx context.Context, id int64) (*productv1.Product, er
 		Stock:       product.Stock,
 		Description: product.Description,
 	}, nil
+}
+
+// GetProductsByCategory 获取某分类下的商品列表（用户端）
+func (s *productService) GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (list []productv1.UserProduct, total int, err error) {
+	// 构建查询条件
+	m := dao.Products.Ctx(ctx).
+		Where(dao.Products.Columns().CategoryId, categoryID).
+		Where(dao.Products.Columns().IsActive, 1) // 只查询已上架商品
+
+	// 查询总数
+	total, err = m.Count()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 分页参数处理
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 10
+	}
+
+	// 查询数据
+	var products []*entity.Products
+	err = m.Page(page, limit).
+		Order(dao.Products.Columns().Id + " DESC").
+		Scan(&products)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 转换为API响应格式
+	list = make([]productv1.UserProduct, len(products))
+	for i, p := range products {
+		if err = gconv.Struct(p, &list[i]); err != nil {
+			return nil, 0, err
+		}
+		list[i].ID = int64(p.Id)
+		list[i].ImageURL = p.ImageUrl
+	}
+
+	return list, total, nil
+}
+
+// GetProductDetail 获取商品详情（用户端）
+func (s *productService) GetProductDetail(ctx context.Context, id int64) (*productv1.UserProductDetail, error) {
+	var product *entity.Products
+	err := dao.Products.Ctx(ctx).
+		Where(dao.Products.Columns().Id, id).
+		Where(dao.Products.Columns().IsActive, 1). // 只查询已上架商品
+		Scan(&product)
+	if err != nil {
+		return nil, err
+	}
+	if product == nil {
+		return nil, gerror.New("商品不存在或已下架")
+	}
+
+	detail := &productv1.UserProductDetail{}
+	detail.UserProduct = productv1.UserProduct{
+		ID:          int64(product.Id),
+		Name:        product.Name,
+		Price:       product.Price,
+		ImageURL:    product.ImageUrl,
+		Stock:       product.Stock,
+		Description: product.Description,
+	}
+
+	return detail, nil
 }

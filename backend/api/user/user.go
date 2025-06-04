@@ -11,7 +11,6 @@ import (
 )
 
 type IUserV1 interface {
-	CreateOrder(ctx context.Context, req *v1.CreateOrderReq) (res *v1.CreateOrderRes, err error)
 	UserOrderList(ctx context.Context, req *v1.UserOrderListReq) (res *v1.UserOrderListRes, err error)
 	UserOrderDetail(ctx context.Context, req *v1.UserOrderDetailReq) (res *v1.UserOrderDetailRes, err error)
 	UserPackageList(ctx context.Context, req *v1.UserPackageListReq) (res *v1.UserPackageListRes, err error)

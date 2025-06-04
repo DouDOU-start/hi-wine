@@ -13,8 +13,7 @@ func (c *ControllerV1) AdminProductUpdate(ctx context.Context, req *v1.AdminProd
 	res = &v1.AdminProductUpdateRes{}
 
 	// 调用商品服务更新商品
-	productService := &service.Product{}
-	product, err := productService.Update(ctx, req)
+	product, err := service.Product().Update(ctx, req)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()

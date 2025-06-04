@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "backend/api/admin/v1"
+	productv1 "backend/api/product/v1"
 	"backend/internal/dao"
 	"backend/internal/model"
 
@@ -165,4 +166,28 @@ func (s *Category) Delete(ctx context.Context, id int64) error {
 
 	// 删除分类
 	return categoryDao.Delete(ctx, id)
+}
+
+// GetActiveCategories 获取所有激活的分类
+func (s *Category) GetActiveCategories(ctx context.Context) ([]productv1.Category, error) {
+	categoryDao := dao.Category{}
+
+	// 查询激活的分类
+	categories, err := categoryDao.GetActiveCategories(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为API响应格式
+	result := make([]productv1.Category, len(categories))
+	for i, category := range categories {
+		result[i] = productv1.Category{
+			ID:        category.ID,
+			Name:      category.Name,
+			SortOrder: category.SortOrder,
+			ImageURL:  "", // 目前模型中没有图片URL字段，如果需要可以添加
+		}
+	}
+
+	return result, nil
 }

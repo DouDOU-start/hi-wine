@@ -5,12 +5,33 @@ package product
 import (
 	"context"
 
-	"github.com/gogf/gf/v2/errors/gcode"
-	"github.com/gogf/gf/v2/errors/gerror"
-
 	v1 "backend/api/product/v1"
+	"backend/internal/service"
 )
 
 func (c *ControllerV1) CategoryList(ctx context.Context, req *v1.CategoryListReq) (res *v1.CategoryListRes, err error) {
-	return nil, gerror.NewCode(gcode.CodeNotImplemented)
+	// 创建响应对象
+	res = &v1.CategoryListRes{}
+
+	// 调用分类服务获取分类列表
+	categoryService := service.Category{}
+	categories, err := categoryService.GetActiveCategories(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// 转换为API响应格式
+	list := make([]v1.Category, len(categories))
+	for i, category := range categories {
+		list[i] = v1.Category{
+			ID:        category.ID,
+			Name:      category.Name,
+			SortOrder: category.SortOrder,
+			ImageURL:  category.ImageURL,
+		}
+	}
+
+	// 设置响应数据
+	res.List = list
+	return res, nil
 }

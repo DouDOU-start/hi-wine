@@ -95,3 +95,12 @@ func (d *Category) HasProducts(ctx context.Context, id int64) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// GetActiveCategories 获取所有激活的分类
+func (d *Category) GetActiveCategories(ctx context.Context) (list []model.Category, err error) {
+	err = g.DB().Model("categories").
+		Where("is_active", true).
+		Order("sort_order ASC, id DESC").
+		Scan(&list)
+	return
+}

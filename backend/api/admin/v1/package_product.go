@@ -39,3 +39,28 @@ type AdminPackageProductListRes struct {
 		List []productv1.Product `json:"list"`
 	}] `json:",inline"`
 }
+
+// 获取可添加到套餐的商品列表（未添加到该套餐的商品）
+type AdminPackageAvailableProductsReq struct {
+	g.Meta    `path:"/api/v1/admin/packages/{package_id}/available-products" method:"get" tags:"管理端-套餐商品" summary:"获取可添加到套餐的商品列表"`
+	PackageID int64  `json:"package_id" in:"path" v:"required#套餐ID必填"`
+	Keyword   string `json:"keyword" in:"query" description:"商品名称关键字搜索"`
+	Page      int    `json:"page" in:"query" description:"页码，默认1"`
+	Limit     int    `json:"limit" in:"query" description:"每页数量，默认10"`
+}
+type AdminPackageAvailableProductsRes struct {
+	common.Response[struct {
+		List  []productv1.Product `json:"list"`
+		Total int                 `json:"total"`
+	}] `json:",inline"`
+}
+
+// 批量从套餐中移除商品
+type AdminPackageBatchRemoveProductsReq struct {
+	g.Meta     `path:"/api/v1/admin/packages/{package_id}/batch-remove-products" method:"post" tags:"管理端-套餐商品" summary:"批量从套餐中移除商品"`
+	PackageID  int64   `json:"package_id" in:"path" v:"required#套餐ID必填"`
+	ProductIDs []int64 `json:"product_ids" v:"required#商品ID列表必填"`
+}
+type AdminPackageBatchRemoveProductsRes struct {
+	common.Response[struct{}] `json:",inline"`
+}

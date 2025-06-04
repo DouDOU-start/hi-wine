@@ -19,16 +19,6 @@ type CreateOrderRes struct {
 	PrepayID    string  `json:"prepay_id"`
 }
 
-// 获取订单详情
-type OrderDetailReq struct {
-	g.Meta  `path:"/api/v1/orders/{order_id}" method:"get" tags:"订单" summary:"获取订单详情"`
-	OrderID int64 `json:"order_id" in:"path" description:"订单ID" v:"required#订单ID不能为空"`
-}
-
-type OrderDetailRes struct {
-	Order
-}
-
 // 订单商品项
 type OrderItemRequest struct {
 	ProductID int64  `json:"product_id" description:"商品ID" v:"required#商品ID不能为空"`

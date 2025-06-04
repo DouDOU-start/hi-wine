@@ -13,8 +13,7 @@ func (c *ControllerV1) AdminProductDetail(ctx context.Context, req *v1.AdminProd
 	res = &v1.AdminProductDetailRes{}
 
 	// 调用商品服务获取商品详情
-	productService := &service.Product{}
-	product, err := productService.GetByID(ctx, req.ProductID)
+	product, err := service.Product().GetByID(ctx, req.ProductID)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()

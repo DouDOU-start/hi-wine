@@ -18,7 +18,7 @@ CREATE TABLE `users` (
 -- 2. 商品分类表 (Categories)
 CREATE TABLE `categories` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '分类ID',
-    `name` VARCHAR(50) NOT NULL UNIQUE COMMENT '分类名称',
+    `name` VARCHAR(50) NOT NULL UNIQUE  COMMENT '分类名称',
     `sort_order` INT NOT NULL DEFAULT 0 COMMENT '排序，数字越小越靠前',
     `is_active` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否激活（是否显示）',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -29,7 +29,7 @@ CREATE TABLE `categories` (
 CREATE TABLE `products` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '商品ID',
     `category_id` INT NOT NULL COMMENT '所属分类ID',
-    `name` VARCHAR(100) NOT NULL COMMENT '商品名称',
+    `name` VARCHAR(100) NOT NULL UNIQUE COMMENT '商品名称',
     `description` TEXT NULL COMMENT '商品描述',
     `price` DECIMAL(10, 2) NOT NULL COMMENT '商品价格',
     `image_url` VARCHAR(255) NULL COMMENT '商品图片URL',
@@ -43,7 +43,7 @@ CREATE TABLE `products` (
 -- 4. 桌号二维码表 (TableQRCodes)
 CREATE TABLE `table_qrcodes` (
     `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT 'ID',
-    `table_number` VARCHAR(20) NOT NULL UNIQUE COMMENT '桌号，例如“A1”, “吧台”',
+    `table_number` VARCHAR(20) NOT NULL UNIQUE COMMENT '桌号，例如"A1", "吧台"',
     `qrcode_url` VARCHAR(255) NULL COMMENT '生成的二维码图片URL',
     `status` ENUM('idle', 'occupied') NOT NULL DEFAULT 'idle' COMMENT '桌位状态',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -96,9 +96,10 @@ CREATE TABLE `user_packages` (
     `user_id` INT NOT NULL COMMENT '关联用户ID',
     `package_id` INT NOT NULL COMMENT '关联畅饮套餐ID',
     `order_id` INT NOT NULL COMMENT '关联购买此套餐的订单ID',
-    `start_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '套餐开始时间',
+    `start_time` DATETIME NULL COMMENT '套餐开始时间（首次使用时激活）',
     `end_time` DATETIME NULL COMMENT '套餐结束时间（根据duration_minutes计算）',
-    `status` ENUM('active', 'expired', 'refunded') NOT NULL DEFAULT 'active' COMMENT '套餐状态',
+    `status` ENUM('active', 'expired', 'refunded', 'pending') NOT NULL DEFAULT 'pending' COMMENT '套餐状态',
+    `is_activated` BOOLEAN NOT NULL DEFAULT FALSE COMMENT '是否已激活（首次使用时激活）',
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     CONSTRAINT `fk_user_packages_user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),

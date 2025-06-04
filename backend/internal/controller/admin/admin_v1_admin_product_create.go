@@ -13,8 +13,7 @@ func (c *ControllerV1) AdminProductCreate(ctx context.Context, req *v1.AdminProd
 	res = &v1.AdminProductCreateRes{}
 
 	// 调用商品服务创建商品
-	productService := &service.Product{}
-	product, err := productService.Create(ctx, req)
+	product, err := service.Product().Create(ctx, req)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()
