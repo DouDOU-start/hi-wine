@@ -3,31 +3,15 @@ package user
 import (
 	"context"
 
+	"github.com/gogf/gf/v2/errors/gcode"
 	"github.com/gogf/gf/v2/errors/gerror"
 
-	"backend/api/common"
 	v1 "backend/api/user/v1"
-	"backend/internal/service"
 )
 
+// WechatLogin 微信登录（重定向到 /auth/wechat-login）
 func (c *ControllerV1) WechatLogin(ctx context.Context, req *v1.WechatLoginReq) (res *v1.WechatLoginRes, err error) {
-	// 调用服务层进行微信登录
-	user, token, err := service.User().LoginByWechat(ctx, req.Code, req.Nickname, req.AvatarURL)
-	if err != nil {
-		return nil, gerror.New("微信登录失败：" + err.Error())
-	}
-
-	// 构建响应
-	res = &v1.WechatLoginRes{}
-	res.Code = common.CodeSuccess
-	res.Message = "登录成功"
-	res.Data = struct {
-		Token string         `json:"token"`
-		User  v1.UserProfile `json:"user"`
-	}{
-		Token: token,
-		User:  *user,
-	}
-
-	return res, nil
+	// 这个方法不应该被调用，因为我们已经在 AuthController 中实现了该方法
+	// 如果被调用，返回未实现错误
+	return nil, gerror.NewCode(gcode.CodeNotImplemented, "请使用 /auth/wechat-login 接口")
 }

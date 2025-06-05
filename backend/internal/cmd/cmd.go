@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"backend/api/common"
+	v1 "backend/api/user/v1"
 	"backend/internal/controller/admin"
 	"backend/internal/controller/file"
 	"backend/internal/controller/hello"
@@ -38,16 +40,58 @@ var (
 					middleware.ResponseWrapper,
 				)
 
-				group.Bind(
-					hello.NewV1(),
-					user.NewV1(),
-					product.NewV1(),
-					order.NewV1(),
-					admin.NewV1(),
-					print.NewV1(),
-					qrcode.NewV1(),
-					file.NewV1(),
-				)
+				// 无需认证的接口 - 仅微信登录
+				group.Group("/auth", func(group *ghttp.RouterGroup) {
+					// 直接绑定微信登录路由
+					group.POST("/wechat-login", func(r *ghttp.Request) {
+						var req *v1.WechatLoginReq
+						if err := r.Parse(&req); err != nil {
+							r.Response.WriteJson(g.Map{
+								"code":    common.CodeParamError,
+								"message": err.Error(),
+							})
+							r.Exit()
+							return
+						}
+
+						authCtrl := user.NewAuth()
+						res, err := authCtrl.WechatLogin(r.Context(), req)
+						if err != nil {
+							r.Response.WriteJson(g.Map{
+								"code":    common.CodeServerError,
+								"message": err.Error(),
+							})
+							r.Exit()
+							return
+						}
+
+						r.Response.WriteJson(res)
+					})
+				})
+
+				// 需要认证的接口
+				group.Group("/api", func(group *ghttp.RouterGroup) {
+					group.Middleware(middleware.JwtAuth)
+
+					group.Bind(
+						hello.NewV1(),
+						user.NewV1(), // 用户相关接口（除了登录）
+						product.NewV1(),
+						order.NewV1(),
+						print.NewV1(),
+						qrcode.NewV1(),
+						file.NewV1(),
+					)
+				})
+
+				// 管理后台接口
+				group.Group("/admin", func(group *ghttp.RouterGroup) {
+					group.Middleware(middleware.JwtAuth)
+
+					group.Bind(
+						admin.NewV1(),
+					)
+				})
 			})
 
 			s.SetSwaggerUITemplate(ScalarUITemplate)

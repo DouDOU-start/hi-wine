@@ -2,7 +2,9 @@ package middleware
 
 import (
 	"backend/api/common"
+	"reflect"
 
+	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 )
 
@@ -19,16 +21,25 @@ func ResponseWrapper(r *ghttp.Request) {
 	// 获取原始响应数据
 	res := r.GetHandlerResponse()
 
-	// 如果响应已经是我们期望的格式，不再处理
-	if _, ok := res.(common.Response[any]); ok {
+	// 如果响应为 nil，不处理
+	if res == nil {
+		g.Log().Debug(r.Context(), "响应为nil，路径:", r.URL.Path)
 		return
 	}
 
-	// 包装响应
-	r.Response.ClearBuffer()
-	r.Response.WriteJson(common.Response[any]{
-		Code:    common.CodeSuccess,
-		Message: "操作成功",
-		Data:    res,
+	// 记录响应类型，用于调试
+	g.Log().Debug(r.Context(), "响应类型:", g.Map{
+		"path": r.URL.Path,
+		"type": reflect.TypeOf(res).String(),
 	})
+
+	// 如果响应已经是我们期望的格式，不再包装，但确保写入响应
+	// 检查是否已经是标准响应格式
+	if _, ok := res.(common.Response[any]); ok {
+		g.Log().Debug(r.Context(), "已是标准响应格式(any)，直接写入:", r.URL.Path)
+		r.Response.WriteJson(res)
+		return
+	}
+
+	r.Response.WriteJson(res)
 }

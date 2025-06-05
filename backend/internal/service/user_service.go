@@ -70,10 +70,84 @@ func UserPackageForUser() UserPackageServiceForUser {
 
 // LoginByWechat 通过微信登录
 func (s *userService) LoginByWechat(ctx context.Context, code string, nickname string, avatarURL string) (user *v1.UserProfile, token string, err error) {
-	// 调用微信API获取用户openid
+	// 测试模式：当code为test_code时，返回测试用户
+	if code == "test_code" {
+		g.Log().Info(ctx, "使用测试模式登录")
+
+		// 查询或创建测试用户
+		var testUser *entity.Users
+		err = dao.Users.Ctx(ctx).Where("openid", "test_openid").Scan(&testUser)
+		if err != nil {
+			return nil, "", gerror.New("查询测试用户失败: " + err.Error())
+		}
+
+		if testUser == nil {
+			// 创建测试用户
+			testNickname := "测试用户"
+			if nickname != "" {
+				testNickname = nickname
+			}
+
+			testAvatar := "https://example.com/avatar.png"
+			if avatarURL != "" {
+				testAvatar = avatarURL
+			}
+
+			testUser = &entity.Users{
+				Openid:    "test_openid",
+				Nickname:  testNickname,
+				AvatarUrl: testAvatar,
+				CreatedAt: gtime.Now(),
+				UpdatedAt: gtime.Now(),
+			}
+
+			result, err := dao.Users.Ctx(ctx).Insert(testUser)
+			if err != nil {
+				return nil, "", gerror.New("创建测试用户失败: " + err.Error())
+			}
+
+			lastInsertId, err := result.LastInsertId()
+			if err != nil {
+				return nil, "", gerror.New("获取测试用户ID失败: " + err.Error())
+			}
+			testUser.Id = int(lastInsertId)
+
+			g.Log().Info(ctx, "创建测试用户成功", g.Map{
+				"userId": testUser.Id,
+				"openid": testUser.Openid,
+			})
+		}
+
+		// 生成token
+		token, err = jwt.GenerateToken(g.Map{
+			"userId": testUser.Id,
+			"openid": testUser.Openid,
+		})
+		if err != nil {
+			return nil, "", gerror.New("生成token失败: " + err.Error())
+		}
+
+		// 构建返回用户信息
+		user = &v1.UserProfile{
+			ID:        int64(testUser.Id),
+			Openid:    testUser.Openid,
+			Nickname:  testUser.Nickname,
+			AvatarURL: testUser.AvatarUrl,
+			Phone:     testUser.Phone,
+		}
+
+		g.Log().Debug(ctx, "测试登录成功", g.Map{
+			"userId": user.ID,
+			"token":  token,
+		})
+
+		return user, token, nil
+	}
+
+	// 正常模式：调用微信API获取用户openid
 	// 微信小程序登录API: https://developers.weixin.qq.com/miniprogram/dev/api-backend/open-api/login/auth.code2Session.html
 	appID := g.Cfg().MustGet(ctx, "wechat.appid").String()
-	appSecret := g.Cfg().MustGet(ctx, "wechat.appsecret").String()
+	appSecret := g.Cfg().MustGet(ctx, "wechat.secret").String()
 
 	g.Log().Debug(ctx, "微信登录参数：", g.Map{
 		"code":      code,
@@ -240,6 +314,7 @@ func (s *userService) GetUserInfo(ctx context.Context, userId int64) (user *v1.U
 	var userEntity *entity.Users
 	err = dao.Users.Ctx(ctx).Where("id", userId).Scan(&userEntity)
 	if err != nil {
+		g.Log().Error(ctx, "查询用户信息失败:", err)
 		return nil, err
 	}
 	if userEntity == nil {
@@ -248,10 +323,19 @@ func (s *userService) GetUserInfo(ctx context.Context, userId int64) (user *v1.U
 
 	user = &v1.UserProfile{
 		ID:        int64(userEntity.Id),
+		Openid:    userEntity.Openid,
 		Nickname:  userEntity.Nickname,
 		AvatarURL: userEntity.AvatarUrl,
 		Phone:     userEntity.Phone,
 	}
+
+	g.Log().Debug(ctx, "获取用户信息:", g.Map{
+		"userId":   user.ID,
+		"openid":   user.Openid,
+		"nickname": user.Nickname,
+		"avatar":   user.AvatarURL != "",
+		"phone":    user.Phone != "",
+	})
 
 	return user, nil
 }
