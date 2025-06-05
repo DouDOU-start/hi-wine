@@ -10,7 +10,7 @@ import (
 
 // 微信登录/注册
 // 微信登录
-// POST /auth/wechat-login
+// POST /api/v1/user/auth/wechat-login
 // code: 微信登录凭证
 // 返回: token, user信息
 type WechatLoginReq struct {
@@ -28,10 +28,10 @@ type WechatLoginRes struct {
 }
 
 // 获取用户个人信息
-// GET /user/profile
+// GET /api/v1/user/profile
 // 返回: user信息
 type UserProfileReq struct {
-	g.Meta `path:"/user/profile" method:"get" tags:"用户" summary:"获取当前登录用户的个人信息"`
+	g.Meta `path:"/profile" method:"get" tags:"用户" summary:"获取当前登录用户的个人信息"`
 }
 
 type UserProfileRes struct {
@@ -39,11 +39,11 @@ type UserProfileRes struct {
 }
 
 // 更新用户个人信息
-// PUT /user/profile
+// PUT /api/v1/user/profile
 // 参数: phone, nickname, avatar_url
 // 返回: user信息
 type UpdateUserProfileReq struct {
-	g.Meta    `path:"/user/profile" method:"put" tags:"用户" summary:"更新当前登录用户的个人信息"`
+	g.Meta    `path:"/profile" method:"put" tags:"用户" summary:"更新当前登录用户的个人信息"`
 	Phone     string `json:"phone,omitempty"`
 	Nickname  string `json:"nickname,omitempty"`
 	AvatarURL string `json:"avatar_url,omitempty"`

@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"backend/internal/controller/admin"
+	"backend/api/admin"
+	ctrlAdmin "backend/internal/controller/admin"
 	"backend/internal/controller/order"
 	"backend/internal/controller/print"
 	"backend/internal/controller/product"
@@ -36,13 +37,6 @@ var (
 					middleware.ResponseWrapper,
 				)
 
-				// 无需认证的接口 - 微信登录
-				group.Group("/", func(group *ghttp.RouterGroup) {
-					// 使用AuthController进行登录处理
-					authCtrl := user.NewAuth()
-					group.Bind(authCtrl.WechatLogin)
-				})
-
 				// 公开API - 无需认证 - 商品查询和套餐查询
 				group.Group("/api/public", func(group *ghttp.RouterGroup) {
 					// 商品相关API
@@ -56,17 +50,33 @@ var (
 					group.Bind(userController.UserPackageDetail)
 				})
 
+				// 用户登录接口 - 无需认证
+				group.Group("/", func(group *ghttp.RouterGroup) {
+					// 使用AuthController进行登录处理
+					authCtrl := user.NewAuth()
+					group.Bind(authCtrl.WechatLogin)
+				})
+
+				// 管理员登录接口 - 无需认证
+				group.Group("/api/v1/admin", func(group *ghttp.RouterGroup) {
+					// 使用AdminAuthController进行登录处理
+					adminAuthCtrl := ctrlAdmin.NewAuth()
+					group.Bind(adminAuthCtrl.AdminLogin)
+				})
+
 				// 需要认证的接口
 				group.Group("/api/v1", func(group *ghttp.RouterGroup) {
 					group.Middleware(middleware.JwtAuth)
 
 					// 用户相关API (需要认证)
-					userController := user.NewV1()
-					group.Bind(userController.UserBuyPackage)
-					group.Bind(userController.UserProfile)
-					group.Bind(userController.UpdateUserProfile)
-					group.Bind(userController.UserOrderList)
-					group.Bind(userController.UserOrderDetail)
+					group.Group("/user", func(group *ghttp.RouterGroup) {
+						userController := user.NewV1()
+						group.Bind(userController.UserBuyPackage)
+						group.Bind(userController.UserProfile)
+						group.Bind(userController.UpdateUserProfile)
+						group.Bind(userController.UserOrderList)
+						group.Bind(userController.UserOrderDetail)
+					})
 
 					// 其他需要认证的API
 					group.Bind(
@@ -74,17 +84,21 @@ var (
 						order.NewV1(),
 						// file.NewV1(),
 					)
-				})
 
-				// 管理后台接口
-				group.Group("/admin", func(group *ghttp.RouterGroup) {
-					group.Middleware(middleware.JwtAuth)
+					// 管理后台接口 (需要认证)
+					group.Group("/admin", func(group *ghttp.RouterGroup) {
+						// 排除登录接口，因为它已经在前面定义了
+						adminController := ctrlAdmin.NewV1()
 
-					group.Bind(
-						admin.NewV1(),
-						qrcode.NewV1(),
-						print.NewV1(),
-					)
+						// 绑定所有其他管理员接口
+						group.Bind(
+							qrcode.NewV1(),
+							print.NewV1(),
+						)
+
+						// 手动绑定管理员控制器，排除登录方法
+						bindAdminControllerExceptLogin(group, adminController)
+					})
 				})
 			})
 
@@ -96,9 +110,43 @@ var (
 	}
 )
 
+// bindAdminControllerExceptLogin 绑定管理员控制器除登录外的所有方法
+func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.IAdminV1) {
+	// 绑定分类相关接口
+	group.Bind(controller.CategoryList)
+	group.Bind(controller.CreateCategory)
+	group.Bind(controller.UpdateCategory)
+	group.Bind(controller.DeleteCategory)
+	group.Bind(controller.CategoryDetail)
+
+	// 绑定订单相关接口
+	group.Bind(controller.AdminOrderList)
+	group.Bind(controller.AdminOrderDetail)
+	group.Bind(controller.AdminOrderUpdateStatus)
+
+	// 绑定套餐相关接口
+	group.Bind(controller.AdminPackageList)
+	group.Bind(controller.AdminPackageCreate)
+	group.Bind(controller.AdminPackageUpdate)
+	group.Bind(controller.AdminPackageDelete)
+	group.Bind(controller.AdminPackageAddProducts)
+	group.Bind(controller.AdminPackageRemoveProduct)
+	group.Bind(controller.AdminPackageProductList)
+
+	// 绑定商品相关接口
+	group.Bind(controller.AdminProductList)
+	group.Bind(controller.AdminProductCreate)
+	group.Bind(controller.AdminProductUpdate)
+	group.Bind(controller.AdminProductDelete)
+	group.Bind(controller.AdminProductDetail)
+
+	// 绑定用户套餐相关接口
+	group.Bind(controller.AdminUserPackageList)
+}
+
 const (
 	SwaggerUITemplate = `
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html lang="en">
 <head>
 	<meta charset="utf-8" />
