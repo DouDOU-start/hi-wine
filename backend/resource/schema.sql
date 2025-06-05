@@ -124,3 +124,20 @@ CREATE TABLE `order_items` (
     CONSTRAINT `fk_order_items_product_id` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`),
     CONSTRAINT `fk_order_items_user_package_id` FOREIGN KEY (`user_package_id`) REFERENCES `user_packages` (`id`)
 ) COMMENT='订单详情表';
+
+-- 10 管理员表 (Admins)
+CREATE TABLE `admins` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY COMMENT '管理员ID',
+    `username` VARCHAR(50) NOT NULL UNIQUE COMMENT '用户名',
+    `password` VARCHAR(255) NOT NULL COMMENT '密码（哈希）',
+    `role` ENUM('super_admin', 'admin', 'staff') NOT NULL DEFAULT 'staff' COMMENT '角色',
+    `is_active` BOOLEAN NOT NULL DEFAULT TRUE COMMENT '是否激活',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `last_login_at` DATETIME NULL COMMENT '最后登录时间'
+) COMMENT='管理员表';
+
+-- 初始管理员账号
+INSERT INTO `admins` (`username`, `password`, `role`) VALUES 
+('admin', '$2a$10$pZomBSfHDLN1iizXF88maO3uhpP5cdc3LwGpVCi06PG05ZcLsFKDa', 'super_admin');
+-- 初始密码为 admin123，使用bcrypt加密 

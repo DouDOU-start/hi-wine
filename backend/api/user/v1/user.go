@@ -14,8 +14,10 @@ import (
 // code: 微信登录凭证
 // 返回: token, user信息
 type WechatLoginReq struct {
-	g.Meta `path:"/auth/wechat-login" method:"post" tags:"用户" summary:"微信登录/注册"`
-	Code   string `json:"code" description:"微信登录凭证" v:"required#code不能为空"`
+	g.Meta    `path:"/auth/wechat-login" method:"post" tags:"用户" summary:"微信登录/注册"`
+	Code      string `json:"code" description:"微信登录凭证" v:"required#code不能为空"`
+	Nickname  string `json:"nickname,omitempty" description:"用户昵称"`
+	AvatarURL string `json:"avatar_url,omitempty" description:"用户头像URL"`
 }
 
 type WechatLoginRes struct {

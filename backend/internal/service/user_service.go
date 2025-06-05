@@ -10,6 +10,7 @@ import (
 	"backend/internal/utility/jwt"
 
 	"github.com/gogf/gf/v2/database/gdb"
+	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
@@ -18,7 +19,7 @@ import (
 // UserService 用户服务接口
 type UserService interface {
 	// 用户登录 (通过微信授权)
-	LoginByWechat(ctx context.Context, code string) (user *v1.UserProfile, token string, err error)
+	LoginByWechat(ctx context.Context, code string, nickname string, avatarURL string) (user *v1.UserProfile, token string, err error)
 
 	// 获取用户信息
 	GetUserInfo(ctx context.Context, userId int64) (user *v1.UserProfile, err error)
@@ -68,49 +69,164 @@ func UserPackageForUser() UserPackageServiceForUser {
 }
 
 // LoginByWechat 通过微信登录
-func (s *userService) LoginByWechat(ctx context.Context, code string) (user *v1.UserProfile, token string, err error) {
-	// 这里实现微信登录逻辑
-	// 1. 调用微信API获取用户openid
-	// 2. 检查用户是否存在，不存在则创建
-	// 3. 生成JWT token
-	// 此处为示例代码，实际项目中需要替换为真实的微信API调用
-	openid := "test_openid_" + code // 模拟openid
+func (s *userService) LoginByWechat(ctx context.Context, code string, nickname string, avatarURL string) (user *v1.UserProfile, token string, err error) {
+	// 调用微信API获取用户openid
+	// 微信小程序登录API: https://developers.weixin.qq.com/miniprogram/dev/api-backend/open-api/login/auth.code2Session.html
+	appID := g.Cfg().MustGet(ctx, "wechat.appid").String()
+	appSecret := g.Cfg().MustGet(ctx, "wechat.appsecret").String()
+
+	g.Log().Debug(ctx, "微信登录参数：", g.Map{
+		"code":      code,
+		"appID":     appID,
+		"appSecret": appSecret[:4] + "****", // 仅记录前几位，保护密钥安全
+	})
+
+	if appID == "" || appSecret == "" {
+		return nil, "", gerror.New("微信小程序配置缺失")
+	}
+
+	// 构建请求URL
+	url := "https://api.weixin.qq.com/sns/jscode2session"
+	params := g.Map{
+		"appid":      appID,
+		"secret":     appSecret,
+		"js_code":    code,
+		"grant_type": "authorization_code",
+	}
+
+	// 发送请求到微信API
+	response, err := g.Client().Get(ctx, url, params)
+	if err != nil {
+		g.Log().Error(ctx, "调用微信API失败:", err)
+		return nil, "", gerror.New("调用微信API失败: " + err.Error())
+	}
+	defer response.Close()
+
+	// 读取响应内容
+	responseBody := response.ReadAllString()
+	g.Log().Debug(ctx, "微信API响应:", responseBody)
+
+	// 解析响应为JSON
+	j, err := gjson.DecodeToJson(responseBody)
+	if err != nil {
+		g.Log().Error(ctx, "解析微信API响应失败:", err)
+		return nil, "", gerror.New("解析微信API响应失败: " + err.Error())
+	}
+	wxResp := j.Map()
+
+	// 检查是否有错误
+	if wxResp["errcode"] != nil && wxResp["errcode"].(float64) != 0 {
+		errMsg := g.Map{
+			"errcode": wxResp["errcode"],
+			"errmsg":  wxResp["errmsg"],
+		}
+		g.Log().Error(ctx, "微信登录返回错误:", errMsg)
+		return nil, "", gerror.Newf("微信登录失败: %s", wxResp["errmsg"])
+	}
+
+	// 获取openid
+	openid := wxResp["openid"].(string)
+	if openid == "" {
+		return nil, "", gerror.New("获取openid失败")
+	}
 
 	// 查询用户是否存在
 	var userEntity *entity.Users
 	err = dao.Users.Ctx(ctx).Where("openid", openid).Scan(&userEntity)
 	if err != nil {
-		return nil, "", err
+		return nil, "", gerror.New("查询用户失败: " + err.Error())
 	}
 
 	// 用户不存在，创建新用户
 	if userEntity == nil {
+		// 创建新用户，保存昵称和头像信息
 		userEntity = &entity.Users{
 			Openid:    openid,
+			Nickname:  nickname,
+			AvatarUrl: avatarURL,
 			CreatedAt: gtime.Now(),
 			UpdatedAt: gtime.Now(),
 		}
-		_, err = dao.Users.Ctx(ctx).Insert(userEntity)
+
+		// 如果微信返回了unionid，也可以保存
+		if unionid, ok := wxResp["unionid"].(string); ok && unionid != "" {
+			// 如果Users表中有unionid字段，可以保存
+			// userEntity.Unionid = unionid
+		}
+
+		result, err := dao.Users.Ctx(ctx).Insert(userEntity)
 		if err != nil {
-			return nil, "", err
+			return nil, "", gerror.New("创建用户失败: " + err.Error())
 		}
 
 		// 获取新创建的用户ID
-		err = dao.Users.Ctx(ctx).Where("openid", openid).Scan(&userEntity)
+		lastInsertId, err := result.LastInsertId()
 		if err != nil {
-			return nil, "", err
+			return nil, "", gerror.New("获取用户ID失败: " + err.Error())
 		}
+		userEntity.Id = int(lastInsertId)
+
+		g.Log().Info(ctx, "新用户注册成功", g.Map{
+			"userId":    userEntity.Id,
+			"nickname":  nickname,
+			"hasAvatar": avatarURL != "",
+		})
+	} else if nickname != "" || avatarURL != "" {
+		// 用户已存在，但传入了昵称或头像信息，可能是首次授权
+		updateData := g.Map{
+			"updated_at": gtime.Now(),
+		}
+
+		needUpdate := false
+
+		// 只有当数据库中昵称为空且传入了昵称时，才更新昵称
+		if nickname != "" && userEntity.Nickname == "" {
+			updateData["nickname"] = nickname
+			userEntity.Nickname = nickname
+			needUpdate = true
+		}
+
+		// 只有当数据库中头像为空且传入了头像时，才更新头像
+		if avatarURL != "" && userEntity.AvatarUrl == "" {
+			updateData["avatar_url"] = avatarURL
+			userEntity.AvatarUrl = avatarURL
+			needUpdate = true
+		}
+
+		if needUpdate {
+			_, err = dao.Users.Ctx(ctx).Where("id", userEntity.Id).Data(updateData).Update()
+			if err != nil {
+				g.Log().Error(ctx, "更新用户信息失败:", err)
+				// 这里我们不返回错误，因为主要功能是登录，更新信息失败不应影响登录流程
+			} else {
+				g.Log().Info(ctx, "更新用户信息成功", g.Map{
+					"userId":   userEntity.Id,
+					"nickname": userEntity.Nickname != "",
+					"avatar":   userEntity.AvatarUrl != "",
+				})
+			}
+		}
+	} else {
+		g.Log().Debug(ctx, "用户登录成功，无需更新信息", g.Map{
+			"userId":      userEntity.Id,
+			"hasNickname": userEntity.Nickname != "",
+			"hasAvatar":   userEntity.AvatarUrl != "",
+		})
 	}
 
 	// 生成token
-	token, err = jwt.GenerateToken(int64(userEntity.Id))
+	token, err = jwt.GenerateToken(g.Map{
+		"userId": userEntity.Id,
+		"openid": userEntity.Openid,
+	})
 	if err != nil {
-		return nil, "", err
+		return nil, "", gerror.New("生成token失败: " + err.Error())
 	}
 
 	// 构建返回用户信息
 	user = &v1.UserProfile{
 		ID:        int64(userEntity.Id),
+		Openid:    userEntity.Openid,
 		Nickname:  userEntity.Nickname,
 		AvatarURL: userEntity.AvatarUrl,
 		Phone:     userEntity.Phone,
