@@ -169,7 +169,7 @@ func (s *Category) Delete(ctx context.Context, id int64) error {
 }
 
 // GetActiveCategories 获取所有激活的分类
-func (s *Category) GetActiveCategories(ctx context.Context) ([]productv1.Category, error) {
+func (s *Category) GetActiveCategories(ctx context.Context) ([]productv1.UserCategory, error) {
 	categoryDao := dao.Category{}
 
 	// 查询激活的分类
@@ -179,9 +179,9 @@ func (s *Category) GetActiveCategories(ctx context.Context) ([]productv1.Categor
 	}
 
 	// 转换为API响应格式
-	result := make([]productv1.Category, len(categories))
+	result := make([]productv1.UserCategory, len(categories))
 	for i, category := range categories {
-		result[i] = productv1.Category{
+		result[i] = productv1.UserCategory{
 			ID:        category.ID,
 			Name:      category.Name,
 			SortOrder: category.SortOrder,

@@ -4,23 +4,29 @@ import (
 	"context"
 
 	userv1 "backend/api/user/v1"
-	"backend/internal/middleware"
 	"backend/internal/service"
+	"backend/internal/utility"
+
+	"github.com/gogf/gf/v2/errors/gerror"
+	"github.com/gogf/gf/v2/frame/g"
 )
 
 // UserOrderDetail 获取指定订单的详细信息
 func (c *ControllerV1) UserOrderDetail(ctx context.Context, req *userv1.UserOrderDetailReq) (res *userv1.UserOrderDetailRes, err error) {
 	// 1. 从上下文中获取用户ID
-	userId := middleware.GetUserId(ctx)
-	// 暂时注释掉用户ID检查逻辑，后续可以根据实际需求决定是否需要
-	// if userId <= 0 {
-	// 	return nil, gerror.New("未登录或登录已过期")
-	// }
+	userId, err := utility.GetUserID(ctx)
+	if err != nil {
+		g.Log().Error(ctx, "获取订单详情失败: 未找到用户ID", err)
+		return nil, gerror.New("未登录或登录已过期")
+	}
+
+	g.Log().Debug(ctx, "获取订单详情，用户ID:", userId, "订单ID:", req.OrderID)
 
 	// 2. 调用订单服务获取订单详情
 	orderService := service.Order()
 	order, err := orderService.GetOrderDetail(ctx, req.OrderID, userId)
 	if err != nil {
+		g.Log().Error(ctx, "获取订单详情失败:", err, "用户ID:", userId, "订单ID:", req.OrderID)
 		return nil, err
 	}
 
@@ -51,6 +57,11 @@ func (c *ControllerV1) UserOrderDetail(ctx context.Context, req *userv1.UserOrde
 
 	// 4. 返回结果
 	res = &userv1.UserOrderDetailRes{}
+	res.Code = 200
+	res.Message = "获取订单详情成功"
 	res.Data = userOrder
+
+	g.Log().Debug(ctx, "获取订单详情成功，用户ID:", userId, "订单ID:", req.OrderID)
+
 	return res, nil
 }

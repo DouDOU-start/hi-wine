@@ -20,8 +20,8 @@ type AdminProductListReq struct {
 }
 type AdminProductListRes struct {
 	common.Response[struct {
-		List  []productv1.Product `json:"list"`
-		Total int                 `json:"total"`
+		List  []productv1.UserProduct `json:"list"`
+		Total int                     `json:"total"`
 	}] `json:",inline"`
 }
 
@@ -37,7 +37,7 @@ type AdminProductCreateReq struct {
 	IsActive    *bool   `json:"is_active"`
 }
 type AdminProductCreateRes struct {
-	common.Response[productv1.Product] `json:",inline"`
+	common.Response[productv1.UserProduct] `json:",inline"`
 }
 
 // 更新商品
@@ -53,7 +53,7 @@ type AdminProductUpdateReq struct {
 	IsActive    *bool   `json:"is_active"`
 }
 type AdminProductUpdateRes struct {
-	common.Response[productv1.Product] `json:",inline"`
+	common.Response[productv1.UserProduct] `json:",inline"`
 }
 
 // 删除商品
@@ -71,5 +71,5 @@ type AdminProductDetailReq struct {
 	ProductID int64 `json:"product_id" in:"path" v:"required#商品ID必填"`
 }
 type AdminProductDetailRes struct {
-	common.Response[productv1.Product] `json:",inline"`
+	common.Response[productv1.UserProduct] `json:",inline"`
 }

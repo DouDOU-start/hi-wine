@@ -98,7 +98,7 @@ func (c *ControllerV1) AdminProductDetail(ctx context.Context, req *v1.AdminProd
 	res = &v1.AdminProductDetailRes{}
 
 	// 调用商品服务获取详情
-	product, err := service.Product().GetByID(ctx, req.ProductID)
+	productDetail, err := service.Product().GetProductDetail(ctx, req.ProductID)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()
@@ -108,7 +108,7 @@ func (c *ControllerV1) AdminProductDetail(ctx context.Context, req *v1.AdminProd
 	// 设置响应数据
 	res.Code = common.CodeSuccess
 	res.Message = "获取商品详情成功"
-	res.Data = *product
+	res.Data = productDetail.UserProduct
 
 	return res, nil
 }

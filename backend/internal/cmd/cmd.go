@@ -40,7 +40,7 @@ var (
 					middleware.ResponseWrapper,
 				)
 
-				// 无需认证的接口 - 仅微信登录
+				// 无需认证的接口 - 微信登录和商品查询
 				group.Group("/auth", func(group *ghttp.RouterGroup) {
 					// 直接绑定微信登录路由
 					group.POST("/wechat-login", func(r *ghttp.Request) {
@@ -69,6 +69,13 @@ var (
 					})
 				})
 
+				// 公开API - 无需认证 - 商品查询
+				group.Group("/api/public", func(group *ghttp.RouterGroup) {
+					group.Bind(
+						product.NewV1(), // 商品相关API
+					)
+				})
+
 				// 需要认证的接口
 				group.Group("/api", func(group *ghttp.RouterGroup) {
 					group.Middleware(middleware.JwtAuth)
@@ -76,7 +83,6 @@ var (
 					group.Bind(
 						hello.NewV1(),
 						user.NewV1(), // 用户相关接口（除了登录）
-						product.NewV1(),
 						order.NewV1(),
 						print.NewV1(),
 						qrcode.NewV1(),

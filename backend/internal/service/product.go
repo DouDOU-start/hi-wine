@@ -20,23 +20,20 @@ import (
 type ProductService interface {
 	// 管理端接口
 	// List 获取商品列表（分页、筛选、模糊搜索）
-	List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.Product, total int, err error)
-
-	// GetByID 根据ID获取商品
-	GetByID(ctx context.Context, id int64) (*productv1.Product, error)
+	List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.UserProduct, total int, err error)
 
 	// Create 创建商品
-	Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.Product, error)
+	Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.UserProduct, error)
 
 	// Update 更新商品
-	Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.Product, error)
+	Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.UserProduct, error)
 
 	// Delete 删除商品
 	Delete(ctx context.Context, id int64) error
 
 	// 用户端接口
 	// GetProductsByCategory 获取某分类下的商品列表
-	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (list []productv1.UserProduct, total int, err error)
+	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int, sortBy, sortOrder string) (list []productv1.UserProduct, total int, err error)
 
 	// GetProductDetail 获取商品详情
 	GetProductDetail(ctx context.Context, id int64) (*productv1.UserProductDetail, error)
@@ -54,7 +51,7 @@ func Product() ProductService {
 }
 
 // List 获取商品列表（分页、筛选、模糊搜索）
-func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.Product, total int, err error) {
+func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) (list []productv1.UserProduct, total int, err error) {
 	// 构建查询条件
 	m := dao.Products.Ctx(ctx)
 
@@ -103,15 +100,17 @@ func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) 
 	}
 
 	// 转换为API响应格式
-	list = make([]productv1.Product, len(products))
+	list = make([]productv1.UserProduct, len(products))
 	for i, p := range products {
-		list[i] = productv1.Product{
+		list[i] = productv1.UserProduct{
 			ID:          int64(p.Id),
 			Name:        p.Name,
 			Price:       p.Price,
 			ImageURL:    p.ImageUrl,
 			Stock:       p.Stock,
 			Description: p.Description,
+			CategoryID:  int64(p.CategoryId),
+			Status:      p.IsActive,
 		}
 	}
 
@@ -119,7 +118,7 @@ func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) 
 }
 
 // Create 创建商品
-func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.Product, error) {
+func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateReq) (*productv1.UserProduct, error) {
 	// 检查分类是否存在
 	categoryDao := &Category{}
 	category, err := categoryDao.GetByID(ctx, req.CategoryID)
@@ -161,14 +160,31 @@ func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateR
 		return nil, err
 	}
 
+	// 查询新创建的商品
+	var newProduct *entity.Products
+	err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&newProduct)
+	if err != nil {
+		return nil, err
+	}
+
 	// 返回创建后的商品
-	return s.GetByID(ctx, id)
+	return &productv1.UserProduct{
+		ID:          int64(newProduct.Id),
+		Name:        newProduct.Name,
+		Price:       newProduct.Price,
+		ImageURL:    newProduct.ImageUrl,
+		Stock:       newProduct.Stock,
+		Description: newProduct.Description,
+		CategoryID:  int64(newProduct.CategoryId),
+		Status:      newProduct.IsActive,
+	}, nil
 }
 
 // Update 更新商品
-func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.Product, error) {
+func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateReq) (*productv1.UserProduct, error) {
 	// 检查商品是否存在
-	product, err := s.GetByID(ctx, req.ProductID)
+	var product *entity.Products
+	err := dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, req.ProductID).Scan(&product)
 	if err != nil {
 		return nil, err
 	}
@@ -223,14 +239,31 @@ func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateR
 		return nil, err
 	}
 
+	// 查询更新后的商品
+	var updatedProduct *entity.Products
+	err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, req.ProductID).Scan(&updatedProduct)
+	if err != nil {
+		return nil, err
+	}
+
 	// 返回更新后的商品
-	return s.GetByID(ctx, req.ProductID)
+	return &productv1.UserProduct{
+		ID:          int64(updatedProduct.Id),
+		Name:        updatedProduct.Name,
+		Price:       updatedProduct.Price,
+		ImageURL:    updatedProduct.ImageUrl,
+		Stock:       updatedProduct.Stock,
+		Description: updatedProduct.Description,
+		CategoryID:  int64(updatedProduct.CategoryId),
+		Status:      updatedProduct.IsActive,
+	}, nil
 }
 
 // Delete 删除商品
 func (s *productService) Delete(ctx context.Context, id int64) error {
 	// 检查商品是否存在
-	product, err := s.GetByID(ctx, id)
+	var product *entity.Products
+	err := dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&product)
 	if err != nil {
 		return err
 	}
@@ -247,14 +280,7 @@ func (s *productService) Delete(ctx context.Context, id int64) error {
 		return gerror.New("该商品已有订单关联，无法删除")
 	}
 
-	// 获取商品图片URL，用于后续删除文件
-	var productEntity *entity.Products
-	err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&productEntity)
-	if err != nil {
-		return err
-	}
-
-	imageURL := productEntity.ImageUrl
+	imageURL := product.ImageUrl
 
 	// 删除商品记录
 	_, err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Delete()
@@ -293,29 +319,8 @@ func (s *productService) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// GetByID 根据ID获取商品
-func (s *productService) GetByID(ctx context.Context, id int64) (*productv1.Product, error) {
-	var product *entity.Products
-	err := dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, id).Scan(&product)
-	if err != nil {
-		return nil, err
-	}
-	if product == nil {
-		return nil, nil
-	}
-
-	return &productv1.Product{
-		ID:          int64(product.Id),
-		Name:        product.Name,
-		Price:       product.Price,
-		ImageURL:    product.ImageUrl,
-		Stock:       product.Stock,
-		Description: product.Description,
-	}, nil
-}
-
 // GetProductsByCategory 获取某分类下的商品列表（用户端）
-func (s *productService) GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int) (list []productv1.UserProduct, total int, err error) {
+func (s *productService) GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int, sortBy, sortOrder string) (list []productv1.UserProduct, total int, err error) {
 	// 构建查询条件
 	m := dao.Products.Ctx(ctx).
 		Where(dao.Products.Columns().CategoryId, categoryID).
@@ -335,10 +340,33 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 		limit = 10
 	}
 
+	// 处理排序
+	orderBy := dao.Products.Columns().Id + " DESC" // 默认按ID倒序排序
+
+	if sortBy != "" {
+		// 映射API字段名到数据库字段名
+		var dbField string
+		switch sortBy {
+		case "price":
+			dbField = dao.Products.Columns().Price
+			// 暂时不支持销量排序，因为数据库没有该字段
+			// case "sales_count":
+			//	dbField = dao.Products.Columns().SalesCount
+		}
+
+		if dbField != "" {
+			if sortOrder == "asc" {
+				orderBy = dbField + " ASC"
+			} else {
+				orderBy = dbField + " DESC"
+			}
+		}
+	}
+
 	// 查询数据
 	var products []*entity.Products
 	err = m.Page(page, limit).
-		Order(dao.Products.Columns().Id + " DESC").
+		Order(orderBy).
 		Scan(&products)
 	if err != nil {
 		return nil, 0, err
@@ -352,6 +380,10 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 		}
 		list[i].ID = int64(p.Id)
 		list[i].ImageURL = p.ImageUrl
+		list[i].CategoryID = int64(p.CategoryId)
+		list[i].Status = p.IsActive
+		// 暂时不设置销量
+		// list[i].SalesCount = p.SalesCount
 	}
 
 	return list, total, nil
@@ -379,6 +411,8 @@ func (s *productService) GetProductDetail(ctx context.Context, id int64) (*produ
 		ImageURL:    product.ImageUrl,
 		Stock:       product.Stock,
 		Description: product.Description,
+		CategoryID:  int64(product.CategoryId),
+		Status:      product.IsActive,
 	}
 
 	return detail, nil

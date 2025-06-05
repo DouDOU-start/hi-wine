@@ -36,7 +36,7 @@ type AdminPackageProductListReq struct {
 }
 type AdminPackageProductListRes struct {
 	common.Response[struct {
-		List []productv1.Product `json:"list"`
+		List []productv1.UserProduct `json:"list"`
 	}] `json:",inline"`
 }
 
@@ -50,8 +50,8 @@ type AdminPackageAvailableProductsReq struct {
 }
 type AdminPackageAvailableProductsRes struct {
 	common.Response[struct {
-		List  []productv1.Product `json:"list"`
-		Total int                 `json:"total"`
+		List  []productv1.UserProduct `json:"list"`
+		Total int                     `json:"total"`
 	}] `json:",inline"`
 }
 

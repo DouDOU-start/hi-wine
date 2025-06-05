@@ -12,7 +12,6 @@ import (
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
-	"github.com/gogf/gf/v2/util/gconv"
 )
 
 // PackageService 套餐服务接口
@@ -33,7 +32,7 @@ type PackageService interface {
 	DeletePackage(ctx context.Context, id int64) error
 
 	// GetPackageProducts 获取套餐包含的商品列表
-	GetPackageProducts(ctx context.Context, packageID int64) (list []productv1.Product, err error)
+	GetPackageProducts(ctx context.Context, packageID int64) (list []productv1.UserProduct, err error)
 
 	// AddPackageProducts 为套餐添加商品
 	AddPackageProducts(ctx context.Context, packageID int64, productIDs []int64) error
@@ -42,7 +41,7 @@ type PackageService interface {
 	RemovePackageProduct(ctx context.Context, packageID int64, productID int64) error
 
 	// GetAvailableProducts 获取可添加到套餐的商品列表
-	GetAvailableProducts(ctx context.Context, packageID int64, keyword string, page, limit int) (list []productv1.Product, total int, err error)
+	GetAvailableProducts(ctx context.Context, packageID int64, keyword string, page, limit int) (list []productv1.UserProduct, total int, err error)
 
 	// BatchRemovePackageProducts 批量从套餐中移除商品
 	BatchRemovePackageProducts(ctx context.Context, packageID int64, productIDs []int64) error
@@ -329,7 +328,7 @@ func (s *packageService) DeletePackage(ctx context.Context, id int64) error {
 }
 
 // GetPackageProducts 获取套餐包含的商品列表
-func (s *packageService) GetPackageProducts(ctx context.Context, packageID int64) (list []productv1.Product, err error) {
+func (s *packageService) GetPackageProducts(ctx context.Context, packageID int64) (list []productv1.UserProduct, err error) {
 	// 查询套餐是否存在
 	count, err := g.DB().Model("drink_all_you_can_packages").Where("id", packageID).Count()
 	if err != nil {
@@ -351,12 +350,17 @@ func (s *packageService) GetPackageProducts(ctx context.Context, packageID int64
 	}
 
 	// 转换为API响应格式
-	list = make([]productv1.Product, 0, len(products))
-	for _, item := range products {
-		var product productv1.Product
-		if err = gconv.Struct(item, &product); err != nil {
-			return nil, err
-		}
+	list = make([]productv1.UserProduct, 0, len(products))
+	for _, p := range products {
+		var product productv1.UserProduct
+		product.ID = int64(p.Id)
+		product.Name = p.Name
+		product.Price = p.Price
+		product.ImageURL = p.ImageUrl
+		product.Stock = p.Stock
+		product.Description = p.Description
+		product.CategoryID = int64(p.CategoryId)
+		product.Status = p.IsActive
 		list = append(list, product)
 	}
 
@@ -451,8 +455,8 @@ func (s *packageService) RemovePackageProduct(ctx context.Context, packageID int
 	})
 }
 
-// GetAvailableProducts 获取可添加到套餐的商品列表
-func (s *packageService) GetAvailableProducts(ctx context.Context, packageID int64, keyword string, page, limit int) (list []productv1.Product, total int, err error) {
+// GetAvailableProducts 获取可添加到套餐的商品列表（未添加到该套餐的商品）
+func (s *packageService) GetAvailableProducts(ctx context.Context, packageID int64, keyword string, page, limit int) (list []productv1.UserProduct, total int, err error) {
 	// 查询套餐是否存在
 	count, err := g.DB().Model("drink_all_you_can_packages").Where("id", packageID).Count()
 	if err != nil {
@@ -501,12 +505,17 @@ func (s *packageService) GetAvailableProducts(ctx context.Context, packageID int
 	}
 
 	// 转换为API响应格式
-	list = make([]productv1.Product, 0, len(products))
-	for _, item := range products {
-		var product productv1.Product
-		if err = gconv.Struct(item, &product); err != nil {
-			return nil, 0, err
-		}
+	list = make([]productv1.UserProduct, 0, len(products))
+	for _, p := range products {
+		var product productv1.UserProduct
+		product.ID = int64(p.Id)
+		product.Name = p.Name
+		product.Price = p.Price
+		product.ImageURL = p.ImageUrl
+		product.Stock = p.Stock
+		product.Description = p.Description
+		product.CategoryID = int64(p.CategoryId)
+		product.Status = p.IsActive
 		list = append(list, product)
 	}
 
