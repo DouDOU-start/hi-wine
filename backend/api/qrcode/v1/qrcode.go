@@ -17,7 +17,7 @@ type TableQrcode struct {
 
 // 生成桌号二维码
 type CreateTableQrcodeReq struct {
-	g.Meta      `path:"/api/v1/admin/table-qrcodes" method:"post" tags:"二维码" summary:"生成桌号二维码"`
+	g.Meta      `path:"/table-qrcodes" method:"post" tags:"管理端-二维码" summary:"生成桌号二维码"`
 	TableNumber string `json:"table_number" v:"required#桌号必填"`
 }
 type CreateTableQrcodeRes struct {
@@ -26,7 +26,7 @@ type CreateTableQrcodeRes struct {
 
 // 获取桌号二维码列表
 type TableQrcodeListReq struct {
-	g.Meta      `path:"/api/v1/admin/table-qrcodes" method:"get" tags:"二维码" summary:"获取所有桌号二维码列表"`
+	g.Meta      `path:"/table-qrcodes" method:"get" tags:"管理端-二维码" summary:"获取所有桌号二维码列表"`
 	TableNumber string `json:"table_number" in:"query" description:"桌号模糊搜索"`
 	Page        int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit       int    `json:"limit" in:"query" description:"每页数量，默认10"`

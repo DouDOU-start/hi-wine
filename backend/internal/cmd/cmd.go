@@ -1,11 +1,7 @@
 package cmd
 
 import (
-	"backend/api/common"
-	v1 "backend/api/user/v1"
 	"backend/internal/controller/admin"
-	"backend/internal/controller/file"
-	"backend/internal/controller/hello"
 	"backend/internal/controller/order"
 	"backend/internal/controller/print"
 	"backend/internal/controller/product"
@@ -40,53 +36,43 @@ var (
 					middleware.ResponseWrapper,
 				)
 
-				// 无需认证的接口 - 微信登录和商品查询
-				group.Group("/auth", func(group *ghttp.RouterGroup) {
-					// 直接绑定微信登录路由
-					group.POST("/wechat-login", func(r *ghttp.Request) {
-						var req *v1.WechatLoginReq
-						if err := r.Parse(&req); err != nil {
-							r.Response.WriteJson(g.Map{
-								"code":    common.CodeParamError,
-								"message": err.Error(),
-							})
-							r.Exit()
-							return
-						}
-
-						authCtrl := user.NewAuth()
-						res, err := authCtrl.WechatLogin(r.Context(), req)
-						if err != nil {
-							r.Response.WriteJson(g.Map{
-								"code":    common.CodeServerError,
-								"message": err.Error(),
-							})
-							r.Exit()
-							return
-						}
-
-						r.Response.WriteJson(res)
-					})
+				// 无需认证的接口 - 微信登录
+				group.Group("/", func(group *ghttp.RouterGroup) {
+					// 使用AuthController进行登录处理
+					authCtrl := user.NewAuth()
+					group.Bind(authCtrl.WechatLogin)
 				})
 
-				// 公开API - 无需认证 - 商品查询
+				// 公开API - 无需认证 - 商品查询和套餐查询
 				group.Group("/api/public", func(group *ghttp.RouterGroup) {
+					// 商品相关API
 					group.Bind(
-						product.NewV1(), // 商品相关API
+						product.NewV1(),
 					)
+
+					// 套餐查询相关API
+					userController := user.NewV1()
+					group.Bind(userController.UserPackageList)
+					group.Bind(userController.UserPackageDetail)
 				})
 
 				// 需要认证的接口
-				group.Group("/api", func(group *ghttp.RouterGroup) {
+				group.Group("/api/v1", func(group *ghttp.RouterGroup) {
 					group.Middleware(middleware.JwtAuth)
 
+					// 用户相关API (需要认证)
+					userController := user.NewV1()
+					group.Bind(userController.UserBuyPackage)
+					group.Bind(userController.UserProfile)
+					group.Bind(userController.UpdateUserProfile)
+					group.Bind(userController.UserOrderList)
+					group.Bind(userController.UserOrderDetail)
+
+					// 其他需要认证的API
 					group.Bind(
-						hello.NewV1(),
-						user.NewV1(), // 用户相关接口（除了登录）
+						// hello.NewV1(),
 						order.NewV1(),
-						print.NewV1(),
-						qrcode.NewV1(),
-						file.NewV1(),
+						// file.NewV1(),
 					)
 				})
 
@@ -96,6 +82,8 @@ var (
 
 					group.Bind(
 						admin.NewV1(),
+						qrcode.NewV1(),
+						print.NewV1(),
 					)
 				})
 			})

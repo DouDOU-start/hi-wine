@@ -22,7 +22,7 @@ type UserPackageDetail struct {
 	// 可扩展更多详情字段
 }
 
-// 获取套餐列表
+// 获取套餐列表 - 公开API
 type UserPackageListReq struct {
 	g.Meta `path:"/packages" method:"get" tags:"套餐" summary:"获取所有可购买的套餐列表"`
 	Page   int    `json:"page" in:"query" description:"页码，默认1"`
@@ -36,7 +36,7 @@ type UserPackageListRes struct {
 	}] `json:",inline"`
 }
 
-// 获取套餐详情
+// 获取套餐详情 - 公开API
 type UserPackageDetailReq struct {
 	g.Meta    `path:"/packages/{package_id}" method:"get" tags:"套餐" summary:"获取套餐详情"`
 	PackageID int64 `json:"package_id" in:"path" description:"套餐ID" v:"required#套餐ID必填"`
@@ -45,7 +45,7 @@ type UserPackageDetailRes struct {
 	common.Response[UserPackageDetail] `json:",inline"`
 }
 
-// 购买套餐
+// 购买套餐 - 需要认证
 type UserBuyPackageReq struct {
 	g.Meta    `path:"/packages/{package_id}/buy" method:"post" tags:"套餐" summary:"购买套餐"`
 	PackageID int64 `json:"package_id" in:"path" description:"套餐ID" v:"required#套餐ID必填"`

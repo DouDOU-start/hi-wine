@@ -6,7 +6,7 @@ import (
 
 // 创建订单
 type CreateOrderReq struct {
-	g.Meta        `path:"/api/v1/orders" method:"post" tags:"订单" summary:"创建订单"`
+	g.Meta        `path:"/orders" method:"post" tags:"订单" summary:"创建订单"`
 	TableQrcodeID int64              `json:"table_qrcode_id" description:"桌号二维码ID" v:"required#桌号二维码ID不能为空"`
 	Items         []OrderItemRequest `json:"items" description:"订单商品列表" v:"required#订单商品不能为空"`
 	TotalNotes    string             `json:"total_notes,omitempty" description:"订单备注"`

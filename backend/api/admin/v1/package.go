@@ -28,7 +28,7 @@ type AdminPackageStats struct {
 
 // 获取套餐列表（分页、筛选、模糊搜索）
 type AdminPackageListReq struct {
-	g.Meta `path:"/api/v1/admin/packages" method:"get" tags:"管理端-套餐" summary:"获取套餐列表（分页、筛选、模糊搜索）"`
+	g.Meta `path:"packages" method:"get" tags:"管理端-套餐" summary:"获取套餐列表（分页、筛选、模糊搜索）"`
 	Page   int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit  int    `json:"limit" in:"query" description:"每页数量，默认10"`
 	Name   string `json:"name" in:"query" description:"套餐名模糊搜索"`
@@ -42,7 +42,7 @@ type AdminPackageListRes struct {
 
 // 获取套餐详情
 type AdminPackageDetailReq struct {
-	g.Meta    `path:"/api/v1/admin/packages/{package_id}" method:"get" tags:"管理端-套餐" summary:"获取套餐详情"`
+	g.Meta    `path:"packages/{package_id}" method:"get" tags:"管理端-套餐" summary:"获取套餐详情"`
 	PackageID int64 `json:"package_id" in:"path" v:"required#套餐ID必填"`
 }
 type AdminPackageDetailRes struct {
@@ -51,7 +51,7 @@ type AdminPackageDetailRes struct {
 
 // 创建套餐
 type AdminPackageCreateReq struct {
-	g.Meta        `path:"/api/v1/admin/packages" method:"post" tags:"管理端-套餐" summary:"创建套餐"`
+	g.Meta        `path:"packages" method:"post" tags:"管理端-套餐" summary:"创建套餐"`
 	Name          string  `json:"name" v:"required#套餐名必填"`
 	Price         float64 `json:"price" v:"required#价格必填"`
 	DurationHours int     `json:"duration_hours" v:"required#有效时长必填"`
@@ -64,7 +64,7 @@ type AdminPackageCreateRes struct {
 
 // 更新套餐
 type AdminPackageUpdateReq struct {
-	g.Meta        `path:"/api/v1/admin/packages/{package_id}" method:"put" tags:"管理端-套餐" summary:"更新套餐"`
+	g.Meta        `path:"packages/{package_id}" method:"put" tags:"管理端-套餐" summary:"更新套餐"`
 	PackageID     int64   `json:"package_id" in:"path" v:"required#套餐ID必填"`
 	Name          string  `json:"name"`
 	Price         float64 `json:"price"`
@@ -78,7 +78,7 @@ type AdminPackageUpdateRes struct {
 
 // 删除套餐
 type AdminPackageDeleteReq struct {
-	g.Meta    `path:"/api/v1/admin/packages/{package_id}" method:"delete" tags:"管理端-套餐" summary:"删除套餐"`
+	g.Meta    `path:"packages/{package_id}" method:"delete" tags:"管理端-套餐" summary:"删除套餐"`
 	PackageID int64 `json:"package_id" in:"path" v:"required#套餐ID必填"`
 }
 type AdminPackageDeleteRes struct {
@@ -87,7 +87,7 @@ type AdminPackageDeleteRes struct {
 
 // 获取套餐使用统计
 type AdminPackageStatsReq struct {
-	g.Meta    `path:"/api/v1/admin/packages/{package_id}/stats" method:"get" tags:"管理端-套餐" summary:"获取套餐使用统计"`
+	g.Meta    `path:"packages/{package_id}/stats" method:"get" tags:"管理端-套餐" summary:"获取套餐使用统计"`
 	PackageID int64 `json:"package_id" in:"path" v:"required#套餐ID必填"`
 }
 type AdminPackageStatsRes struct {

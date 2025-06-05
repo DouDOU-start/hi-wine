@@ -9,7 +9,7 @@ import (
 
 // 上传文件
 type UploadFileReq struct {
-	g.Meta `path:"/api/v1/admin/upload" method:"post" mime:"multipart/form-data" tags:"管理端-文件上传" summary:"上传文件"`
+	g.Meta `path:"/upload" method:"post" mime:"multipart/form-data" tags:"管理端-文件上传" summary:"上传文件"`
 	File   *ghttp.UploadFile `json:"file" type:"file" v:"required#请选择文件"`
 	Type   string            `json:"type" in:"query" d:"common" description:"文件类型，如: product, avatar, common"`
 }

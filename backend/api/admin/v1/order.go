@@ -27,7 +27,7 @@ type AdminOrder struct {
 
 // 获取订单列表（分页、筛选、模糊搜索）
 type AdminOrderListReq struct {
-	g.Meta      `path:"/api/v1/admin/orders" method:"get" tags:"管理端-订单" summary:"获取订单列表（分页、筛选、模糊搜索）"`
+	g.Meta      `path:"orders" method:"get" tags:"管理端-订单" summary:"获取订单列表（分页、筛选、模糊搜索）"`
 	Status      string `json:"status" in:"query" description:"订单状态筛选"`
 	Page        int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit       int    `json:"limit" in:"query" description:"每页数量，默认10"`
@@ -46,7 +46,7 @@ type AdminOrderListRes struct {
 
 // 获取订单详情
 type AdminOrderDetailReq struct {
-	g.Meta  `path:"/api/v1/admin/orders/{order_id}" method:"get" tags:"管理端-订单" summary:"获取订单详情"`
+	g.Meta  `path:"orders/{order_id}" method:"get" tags:"管理端-订单" summary:"获取订单详情"`
 	OrderID int64 `json:"order_id" in:"path" v:"required#订单ID必填"`
 }
 type AdminOrderDetailRes struct {
@@ -55,7 +55,7 @@ type AdminOrderDetailRes struct {
 
 // 更新订单状态
 type AdminOrderUpdateStatusReq struct {
-	g.Meta  `path:"/api/v1/admin/orders/{order_id}/status" method:"put" tags:"管理端-订单" summary:"更新订单状态"`
+	g.Meta  `path:"orders/{order_id}/status" method:"put" tags:"管理端-订单" summary:"更新订单状态"`
 	OrderID int64  `json:"order_id" in:"path" v:"required#订单ID必填"`
 	Status  string `json:"status" v:"required#新状态必填"`
 	Reason  string `json:"reason" description:"变更原因"`

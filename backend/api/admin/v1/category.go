@@ -17,7 +17,7 @@ type AdminCategory struct {
 
 // 获取分类列表
 type AdminCategoryListReq struct {
-	g.Meta `path:"/api/v1/admin/categories" method:"get" tags:"管理端-分类" summary:"获取分类列表"`
+	g.Meta `path:"categories" method:"get" tags:"管理端-分类" summary:"获取分类列表"`
 	Page   int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit  int    `json:"limit" in:"query" description:"每页数量，默认10"`
 	Name   string `json:"name" in:"query" description:"分类名称模糊搜索"`
@@ -31,7 +31,7 @@ type AdminCategoryListRes struct {
 
 // 创建分类
 type AdminCreateCategoryReq struct {
-	g.Meta    `path:"/api/v1/admin/categories" method:"post" tags:"管理端-分类" summary:"创建分类"`
+	g.Meta    `path:"categories" method:"post" tags:"管理端-分类" summary:"创建分类"`
 	Name      string `json:"name" v:"required#分类名称不能为空"`
 	SortOrder int    `json:"sort_order,omitempty"`
 	IsActive  bool   `json:"is_active,omitempty"`
@@ -42,7 +42,7 @@ type AdminCreateCategoryRes struct {
 
 // 更新分类
 type AdminUpdateCategoryReq struct {
-	g.Meta    `path:"/api/v1/admin/categories/{id}" method:"put" tags:"管理端-分类" summary:"更新分类"`
+	g.Meta    `path:"categories/{id}" method:"put" tags:"管理端-分类" summary:"更新分类"`
 	ID        int64  `json:"id" in:"path" v:"required#分类ID不能为空"`
 	Name      string `json:"name,omitempty"`
 	SortOrder int    `json:"sort_order,omitempty"`
@@ -54,7 +54,7 @@ type AdminUpdateCategoryRes struct {
 
 // 删除分类
 type AdminDeleteCategoryReq struct {
-	g.Meta `path:"/api/v1/admin/categories/{id}" method:"delete" tags:"管理端-分类" summary:"删除分类"`
+	g.Meta `path:"categories/{id}" method:"delete" tags:"管理端-分类" summary:"删除分类"`
 	ID     int64 `json:"id" in:"path" v:"required#分类ID不能为空"`
 }
 type AdminDeleteCategoryRes struct {
@@ -63,7 +63,7 @@ type AdminDeleteCategoryRes struct {
 
 // 获取分类详情
 type AdminCategoryDetailReq struct {
-	g.Meta `path:"/api/v1/admin/categories/{id}" method:"get" tags:"管理端-分类" summary:"获取分类详情"`
+	g.Meta `path:"categories/{id}" method:"get" tags:"管理端-分类" summary:"获取分类详情"`
 	ID     int64 `json:"id" in:"path" v:"required#分类ID不能为空"`
 }
 type AdminCategoryDetailRes struct {

@@ -31,7 +31,7 @@ type OrderItem struct {
 
 // 获取用户订单列表
 type UserOrderListReq struct {
-	g.Meta `path:"/user/orders" method:"get" tags:"订单" summary:"获取当前登录用户的所有订单列表"`
+	g.Meta `path:"/orders" method:"get" tags:"订单" summary:"获取当前登录用户的所有订单列表"`
 	Status string `json:"status" in:"query" description:"订单状态筛选"`
 	Page   int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit  int    `json:"limit" in:"query" description:"每页数量，默认10"`

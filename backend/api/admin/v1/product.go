@@ -11,7 +11,7 @@ import (
 
 // 获取商品列表（分页、筛选、模糊搜索）
 type AdminProductListReq struct {
-	g.Meta     `path:"/api/v1/admin/products" method:"get" tags:"管理端-商品" summary:"获取商品列表（分页、筛选、模糊搜索）"`
+	g.Meta     `path:"products" method:"get" tags:"管理端-商品" summary:"获取商品列表（分页、筛选、模糊搜索）"`
 	Page       int    `json:"page" in:"query" description:"页码，默认1"`
 	Limit      int    `json:"limit" in:"query" description:"每页数量，默认10"`
 	Name       string `json:"name" in:"query" description:"商品名模糊搜索"`
@@ -27,7 +27,7 @@ type AdminProductListRes struct {
 
 // 创建商品
 type AdminProductCreateReq struct {
-	g.Meta      `path:"/api/v1/admin/products" method:"post" tags:"管理端-商品" summary:"创建商品"`
+	g.Meta      `path:"products" method:"post" tags:"管理端-商品" summary:"创建商品"`
 	Name        string  `json:"name" v:"required#商品名必填"`
 	CategoryID  int64   `json:"category_id" v:"required#分类必填"`
 	Price       float64 `json:"price" v:"required#价格必填"`
@@ -42,7 +42,7 @@ type AdminProductCreateRes struct {
 
 // 更新商品
 type AdminProductUpdateReq struct {
-	g.Meta      `path:"/api/v1/admin/products/{product_id}" method:"put" tags:"管理端-商品" summary:"更新商品"`
+	g.Meta      `path:"products/{product_id}" method:"put" tags:"管理端-商品" summary:"更新商品"`
 	ProductID   int64   `json:"product_id" in:"path" v:"required#商品ID必填"`
 	Name        string  `json:"name"`
 	CategoryID  int64   `json:"category_id"`
@@ -58,7 +58,7 @@ type AdminProductUpdateRes struct {
 
 // 删除商品
 type AdminProductDeleteReq struct {
-	g.Meta    `path:"/api/v1/admin/products/{product_id}" method:"delete" tags:"管理端-商品" summary:"删除商品"`
+	g.Meta    `path:"products/{product_id}" method:"delete" tags:"管理端-商品" summary:"删除商品"`
 	ProductID int64 `json:"product_id" in:"path" v:"required#商品ID必填"`
 }
 type AdminProductDeleteRes struct {
@@ -67,7 +67,7 @@ type AdminProductDeleteRes struct {
 
 // 获取商品详情
 type AdminProductDetailReq struct {
-	g.Meta    `path:"/api/v1/admin/products/{product_id}" method:"get" tags:"管理端-商品" summary:"获取商品详情"`
+	g.Meta    `path:"products/{product_id}" method:"get" tags:"管理端-商品" summary:"获取商品详情"`
 	ProductID int64 `json:"product_id" in:"path" v:"required#商品ID必填"`
 }
 type AdminProductDetailRes struct {
