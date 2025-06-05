@@ -291,7 +291,7 @@ func (s *productService) Delete(ctx context.Context, id int64) error {
 	// 如果有图片，则删除图片文件
 	if imageURL != "" {
 		// 从URL中提取文件路径
-		// 图片URL格式为: http://domain/api/v1/file/directory/filename.ext 或 http://domain/file/directory/filename.ext
+		// 图片URL格式为: http://domain/file/directory/filename.ext
 		// 需要提取的是 directory/filename.ext 部分
 		var objectName string
 

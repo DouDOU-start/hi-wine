@@ -3,6 +3,7 @@ package cmd
 import (
 	"backend/api/admin"
 	ctrlAdmin "backend/internal/controller/admin"
+	"backend/internal/controller/file"
 	"backend/internal/controller/order"
 	"backend/internal/controller/print"
 	"backend/internal/controller/product"
@@ -50,6 +51,12 @@ var (
 					group.Bind(userController.UserPackageDetail)
 				})
 
+				// 文件代理API - 公开访问
+				group.Group("/", func(group *ghttp.RouterGroup) {
+					fileController := file.NewV1()
+					group.Bind(fileController.FileProxyPublic)
+				})
+
 				// 用户登录接口 - 无需认证
 				group.Group("/", func(group *ghttp.RouterGroup) {
 					// 使用AuthController进行登录处理
@@ -80,9 +87,7 @@ var (
 
 					// 其他需要认证的API
 					group.Bind(
-						// hello.NewV1(),
 						order.NewV1(),
-						// file.NewV1(),
 					)
 
 					// 管理后台接口 (需要认证)
@@ -142,6 +147,9 @@ func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.I
 
 	// 绑定用户套餐相关接口
 	group.Bind(controller.AdminUserPackageList)
+
+	// 绑定上传文件接口
+	group.Bind(controller.UploadFile)
 }
 
 const (

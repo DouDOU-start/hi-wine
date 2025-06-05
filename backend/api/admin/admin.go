@@ -43,4 +43,7 @@ type IAdminV1 interface {
 	
 	// 用户套餐相关接口
 	AdminUserPackageList(ctx context.Context, req *v1.AdminUserPackageListReq) (res *v1.AdminUserPackageListRes, err error)
+
+	// 上传文件
+	UploadFile(ctx context.Context, req *v1.UploadFileReq) (res *v1.UploadFileRes, err error)
 }

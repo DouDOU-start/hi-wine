@@ -165,7 +165,7 @@ func (m *MinioClient) UploadFile(ctx context.Context, file *multipart.FileHeader
 		serverURL = "http://localhost:8000" // 默认服务器URL
 	}
 
-	return serverURL + "/api/v1/file/" + objectName, nil
+	return serverURL + "/file/" + objectName, nil
 }
 
 // UploadFileFromReader 从Reader上传文件
@@ -187,7 +187,7 @@ func (m *MinioClient) UploadFileFromReader(ctx context.Context, reader io.Reader
 		serverURL = "http://localhost:8000" // 默认服务器URL
 	}
 
-	return serverURL + "/api/v1/file/" + objectName, nil
+	return serverURL + "/file/" + objectName, nil
 }
 
 // DeleteFile 删除文件
