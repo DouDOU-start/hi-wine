@@ -33,8 +33,8 @@ func (s *Category) List(ctx context.Context, req *v1.AdminCategoryListReq) (list
 			Name:      category.Name,
 			SortOrder: category.SortOrder,
 			IsActive:  category.IsActive,
-			CreatedAt: category.CreatedAt,
-			UpdatedAt: category.UpdatedAt,
+			CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
@@ -57,8 +57,8 @@ func (s *Category) GetByID(ctx context.Context, id int64) (*v1.AdminCategory, er
 		Name:      category.Name,
 		SortOrder: category.SortOrder,
 		IsActive:  category.IsActive,
-		CreatedAt: category.CreatedAt,
-		UpdatedAt: category.UpdatedAt,
+		CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
