@@ -263,11 +263,11 @@
         <el-table-column prop="image" label="图片" width="100" v-if="tableConfig.showImage">
           <template #default="scope">
             <el-image 
-              v-if="scope.row.image" 
-              :src="scope.row.image" 
+              v-if="scope.row.image_url || scope.row.image" 
+              :src="getImageUrl(scope.row.image_url || scope.row.image)" 
               style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;"
               fit="cover"
-              :preview-src-list="[scope.row.image]"
+              :preview-src-list="[getImageUrl(scope.row.image_url || scope.row.image)]"
               :initial-index="0"
               lazy
               @error="handleImageError(scope.row)"
@@ -349,7 +349,7 @@
                 v-model="scope.row.status"
                 :active-value="1"
                 :inactive-value="0"
-                @change="handleStatusChange(scope.row)"
+                @change="() => { scope.row.userTriggered = true; handleStatusChange(scope.row); }"
                 style="--el-switch-on-color: #13ce66; --el-switch-off-color: #909399;"
                 inline-prompt
                 active-text="上"
@@ -558,59 +558,46 @@ const handleBatchStatusChange = (status) => {
 const fetchProductList = async () => {
   loading.value = true;
   try {
-    // 处理高级搜索参数
+    // 构建查询参数
     const params = {
       page: currentPage.value,
-      size: pageSize.value,
+      limit: pageSize.value,
       name: searchForm.name,
       categoryId: searchForm.categoryId,
-      status: searchForm.status
+      status: searchForm.status,
+      minPrice: searchForm.minPrice,
+      maxPrice: searchForm.maxPrice,
+      stockStatus: searchForm.stockStatus
     };
     
-    // 添加价格范围
-    if (searchForm.minPrice !== null) {
-      params.minPrice = searchForm.minPrice;
-    }
-    if (searchForm.maxPrice !== null) {
-      params.maxPrice = searchForm.maxPrice;
-    }
-    
-    // 添加库存状态
-    if (searchForm.stockStatus) {
-      switch (searchForm.stockStatus) {
-        case 'low':
-          params.maxStock = 10;
-          params.minStock = 1;
-          break;
-        case 'out':
-          params.maxStock = 0;
-          break;
-        case 'normal':
-          params.minStock = 11;
-          break;
-      }
-    }
-    
-    // 添加日期范围
+    // 如果有日期范围，添加到查询参数
     if (searchForm.dateRange && searchForm.dateRange.length === 2) {
       params.startDate = searchForm.dateRange[0];
       params.endDate = searchForm.dateRange[1];
     }
     
+    console.log('获取商品列表，参数:', params);
     const response = await getProductList(params);
+    console.log('商品列表响应:', response);
     
     // 处理返回的数据，确保每个商品有分类名称
     if (response.data && response.data.list) {
       productList.value = response.data.list.map(item => {
         // 查找对应的分类名称
         const category = categoryOptions.value.find(cat => cat.id === item.category_id);
+        
+        // 调试日志
+        console.log('处理商品数据:', item);
+        
         return {
           ...item,
           categoryName: category ? category.name : '未分类',
-          // 确保状态是数字类型
-          status: typeof item.status === 'string' ? parseInt(item.status) : item.status,
+          // 处理状态字段，后端返回的可能是status或is_active
+          status: item.status !== undefined ? item.status : (item.is_active === true ? 1 : 0),
           // 确保价格是数字类型
-          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
+          // 确保图片字段存在
+          image: item.image_url || item.image
         };
       });
       total.value = response.data.total || 0;
@@ -731,21 +718,49 @@ const handleBatchDelete = () => {
 
 // 修改商品状态
 const handleStatusChange = async (row) => {
+  const originalStatus = row.status;
   try {
-    await updateProductStatus(row.id, row.status);
-    ElMessage.success(`商品已${row.status === 1 ? '上架' : '下架'}`);
+    console.log('更新商品状态开始:', row.id, '新状态:', row.status);
+    // 静默处理，不显示成功消息
+    const response = await updateProductStatus(row.id, row.status);
+    console.log('状态更新成功，响应:', response);
+    
+    // 只有用户手动操作时才显示消息
+    if (row.userTriggered) {
+      ElMessage.success(`商品已${row.status === 1 ? '上架' : '下架'}`);
+      row.userTriggered = false;
+    }
   } catch (error) {
     console.error('更新商品状态失败:', error);
-    ElMessage.error('更新商品状态失败');
+    // 只有用户手动操作时才显示错误消息
+    if (row.userTriggered) {
+      ElMessage.error(`更新商品状态失败: ${error.message || '未知错误'}`);
+      row.userTriggered = false;
+    }
     // 恢复原状态
-    row.status = row.status === 1 ? 0 : 1;
+    row.status = originalStatus === 1 ? 0 : 1;
   }
 };
 
 // 图片错误处理
 const handleImageError = (row) => {
-  console.error(`图片加载失败: ${row.name}`, row.image);
+  console.error(`图片加载失败: ${row.name}`, row.image_url || row.image);
   // 避免多次提示，不显示消息提示
+};
+
+// 获取完整图片URL
+const getImageUrl = (url) => {
+  if (!url) return '';
+  
+  // 如果是相对路径，添加基础URL
+  if (url.startsWith('/')) {
+    // 使用当前域名作为基础URL，而不是硬编码
+    // 这样可以适应不同的部署环境
+    return url;
+  }
+  
+  // 如果已经是完整URL，直接返回
+  return url;
 };
 
 // 页面加载时获取数据

@@ -45,19 +45,36 @@ export function deleteProduct(id) {
 
 // 上下架商品
 export function updateProductStatus(id, status) {
+  console.log('API调用 - 更新商品状态:', id, status);
+  // 确保status是布尔值
+  const isActive = status === 1;
+  
+  // 先获取商品详情，然后只修改状态
   return request({
-    url: `/admin/products/${id}/status`,
-    method: 'put',
-    data: { status }
+    url: `/admin/products/${id}`,
+    method: 'get'
+  }).then(response => {
+    const product = response.data;
+    // 修改状态字段
+    product.is_active = isActive;
+    
+    // 发送更新请求
+    return request({
+      url: `/admin/products/${id}`,
+      method: 'put',
+      data: product
+    });
   });
 }
 
 // 批量更新商品状态
 export function batchUpdateProductStatus(ids, status) {
+  // 确保status是布尔值
+  const isActive = status === 1;
   return request({
-    url: '/admin/products/batch/status',
+    url: '/admin/products/batch',
     method: 'put',
-    data: { ids, status }
+    data: { ids, is_active: isActive }
   });
 }
 
@@ -67,7 +84,7 @@ export function uploadProductImage(file) {
   formData.append('file', file);
   
   return request({
-    url: '/admin/upload/image',
+    url: '/admin/upload',
     method: 'post',
     data: formData,
     headers: {

@@ -1,12 +1,27 @@
 <template>
   <div class="page-container">
+    <!-- 页面头部 - 使用更现代的设计 -->
     <div class="page-header">
-      <div class="page-title">{{ isEdit ? '编辑商品' : '添加商品' }}</div>
-      <el-button @click="goBack">
+      <div class="page-title-container">
+        <el-icon class="page-icon"><Goods /></el-icon>
+        <div class="page-title-content">
+          <h2 class="page-title">{{ isEdit ? '编辑商品' : '添加商品' }}</h2>
+          <div class="page-subtitle">{{ isEdit ? '修改现有商品信息' : '创建新的商品' }}</div>
+        </div>
+      </div>
+      <el-button type="primary" plain @click="goBack">
         <el-icon><Back /></el-icon>返回列表
       </el-button>
     </div>
     
+    <!-- 步骤指示器 - 添加视觉引导 -->
+    <el-steps :active="1" finish-status="success" simple class="steps-bar">
+      <el-step title="填写信息" />
+      <el-step title="预览确认" />
+      <el-step title="提交保存" />
+    </el-steps>
+    
+    <!-- 主表单 - 使用卡片组布局 -->
     <el-form
       ref="formRef"
       :model="form"
@@ -15,29 +30,49 @@
       class="product-form"
       :disabled="submitting"
     >
-      <el-row :gutter="20">
+      <el-row :gutter="24">
         <!-- 左侧表单 -->
         <el-col :xs="24" :sm="24" :md="16" :lg="16" :xl="16">
-          <!-- 基本信息 -->
+          <!-- 基本信息卡片 -->
           <el-card shadow="hover" class="form-card">
             <template #header>
               <div class="card-header">
-                <span>基本信息</span>
+                <div class="card-title">
+                  <el-icon class="card-icon"><InfoFilled /></el-icon>
+                  <span>基本信息</span>
+                </div>
+                <el-tag size="small" effect="plain" type="info">必填</el-tag>
               </div>
             </template>
             
             <el-form-item label="商品名称" prop="name">
-              <el-input v-model="form.name" placeholder="请输入商品名称" maxlength="50" show-word-limit />
+              <el-input 
+                v-model="form.name" 
+                placeholder="请输入商品名称" 
+                maxlength="50" 
+                show-word-limit
+                prefix-icon="Document"
+              />
             </el-form-item>
             
             <el-form-item label="商品分类" prop="categoryId">
-              <el-select v-model="form.categoryId" placeholder="请选择商品分类" style="width: 100%">
+              <el-select 
+                v-model="form.categoryId" 
+                placeholder="请选择商品分类" 
+                style="width: 100%"
+                filterable
+              >
                 <el-option
                   v-for="item in categoryOptions"
                   :key="item.id"
                   :label="item.name"
                   :value="String(item.id)"
-                />
+                >
+                  <div class="category-option">
+                    <el-icon><Folder /></el-icon>
+                    <span>{{ item.name }}</span>
+                  </div>
+                </el-option>
               </el-select>
             </el-form-item>
             
@@ -51,7 +86,9 @@
                     :min="0"
                     style="width: 100%;"
                     controls-position="right"
-                  />
+                  >
+                    <template #prefix>¥</template>
+                  </el-input-number>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -62,24 +99,41 @@
                     :precision="0"
                     style="width: 100%;"
                     controls-position="right"
-                  />
+                  >
+                    <template #prefix>
+                      <el-icon><Goods /></el-icon>
+                    </template>
+                  </el-input-number>
                 </el-form-item>
               </el-col>
             </el-row>
             
             <el-form-item label="商品状态" prop="status">
-              <el-radio-group v-model="form.status">
-                <el-radio :label="1">上架</el-radio>
-                <el-radio :label="0">下架</el-radio>
-              </el-radio-group>
+              <el-switch
+                v-model="form.status"
+                :active-value="1"
+                :inactive-value="0"
+                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949;"
+                inline-prompt
+                active-text="上架"
+                inactive-text="下架"
+                class="status-switch"
+              />
+              <span class="status-text">{{ form.status === 1 ? '商品将在保存后立即上架销售' : '商品将保存为下架状态' }}</span>
             </el-form-item>
           </el-card>
           
-          <!-- 商品描述 -->
+          <!-- 商品描述卡片 -->
           <el-card shadow="hover" class="form-card">
             <template #header>
               <div class="card-header">
-                <span>商品描述</span>
+                <div class="card-title">
+                  <el-icon class="card-icon"><Document /></el-icon>
+                  <span>商品描述</span>
+                </div>
+                <el-tooltip content="详细的商品描述有助于提高销售转化率" placement="top">
+                  <el-icon class="help-icon"><QuestionFilled /></el-icon>
+                </el-tooltip>
               </div>
             </template>
             
@@ -87,10 +141,12 @@
               <el-input
                 v-model="form.description"
                 type="textarea"
-                :rows="6"
-                placeholder="请输入商品描述"
+                :rows="8"
+                placeholder="请输入商品描述，包括特点、口感、产地等信息"
                 maxlength="500"
                 show-word-limit
+                resize="none"
+                class="description-textarea"
               />
             </el-form-item>
           </el-card>
@@ -98,68 +154,105 @@
         
         <!-- 右侧图片上传 -->
         <el-col :xs="24" :sm="24" :md="8" :lg="8" :xl="8">
-          <el-card shadow="hover" class="form-card">
+          <el-card shadow="hover" class="form-card image-card">
             <template #header>
               <div class="card-header">
-                <span>商品图片</span>
+                <div class="card-title">
+                  <el-icon class="card-icon"><Picture /></el-icon>
+                  <span>商品图片</span>
+                </div>
+                <el-tag size="small" effect="plain" type="info">必填</el-tag>
               </div>
             </template>
             
             <el-form-item prop="image" class="image-form-item">
-              <el-upload
-                class="product-image-uploader"
-                action="/api/admin/upload/image"
-                :show-file-list="false"
-                :on-success="handleUploadSuccess"
-                :before-upload="beforeUpload"
-                :headers="uploadHeaders"
-                :disabled="submitting"
-              >
-                <div class="upload-area">
-                  <img v-if="form.image" :src="form.image" class="product-image" />
-                  <div v-else class="upload-placeholder">
-                    <el-icon class="upload-icon"><Plus /></el-icon>
-                    <div class="upload-text">点击上传图片</div>
+              <div class="upload-container">
+                <el-upload
+                  class="product-image-uploader"
+                  action="/api/admin/upload"
+                  :show-file-list="false"
+                  :on-success="handleUploadSuccess"
+                  :before-upload="beforeUpload"
+                  :headers="uploadHeaders"
+                  :disabled="submitting"
+                  :on-error="handleUploadError"
+                  drag
+                >
+                  <div class="upload-area" :class="{'has-image': form.image}">
+                    <template v-if="form.image">
+                      <img :src="getImageUrl(form.image)" class="product-image" />
+                      <div class="image-overlay">
+                        <el-icon class="upload-icon"><RefreshRight /></el-icon>
+                        <div class="upload-text">点击更换图片</div>
+                      </div>
+                    </template>
+                    <template v-else>
+                      <div class="upload-placeholder">
+                        <el-icon class="upload-icon"><Upload /></el-icon>
+                        <div class="upload-text">点击或拖拽图片上传</div>
+                      </div>
+                    </template>
                   </div>
-                </div>
-              </el-upload>
+                </el-upload>
+              </div>
               
               <div class="upload-tips">
                 <el-alert
-                  title="图片上传提示"
+                  title="图片上传要求"
                   type="info"
                   :closable="false"
+                  class="upload-alert"
                 >
                   <template #default>
-                    <p>- 建议上传正方形图片，大小不超过5MB</p>
-                    <p>- 支持JPG、PNG、GIF格式</p>
-                    <p>- 图片清晰度不低于300x300像素</p>
+                    <ul class="upload-requirements">
+                      <li><el-icon><Check /></el-icon> 建议上传正方形图片，大小不超过5MB</li>
+                      <li><el-icon><Check /></el-icon> 支持JPG、PNG、GIF格式</li>
+                      <li><el-icon><Check /></el-icon> 图片清晰度不低于300x300像素</li>
+                    </ul>
                   </template>
                 </el-alert>
               </div>
             </el-form-item>
             
-            <div class="image-preview" v-if="form.image">
-              <div class="preview-title">图片预览</div>
-              <div class="preview-container">
-                <img :src="form.image" class="preview-image" />
+            <!-- 商品预览卡片 -->
+            <div class="preview-section" v-if="form.name || form.image">
+              <div class="preview-title">
+                <el-icon><View /></el-icon>
+                <span>商品预览</span>
+              </div>
+              <div class="product-preview-card">
+                <div class="preview-image-container">
+                  <img v-if="form.image" :src="getImageUrl(form.image)" class="preview-image" />
+                  <div v-else class="no-image">暂无图片</div>
+                </div>
+                <div class="preview-info">
+                  <div class="preview-name">{{ form.name || '商品名称' }}</div>
+                  <div class="preview-price">¥ {{ form.price.toFixed(2) }}</div>
+                  <div class="preview-category">
+                    {{ getCategoryName(form.categoryId) || '未分类' }}
+                  </div>
+                </div>
               </div>
             </div>
           </el-card>
         </el-col>
       </el-row>
       
-      <!-- 表单操作按钮 -->
+      <!-- 表单操作按钮 - 更现代的设计 -->
       <div class="form-actions">
-        <el-button type="primary" @click="submitForm" :loading="submitting">
-          <el-icon><Check /></el-icon>{{ isEdit ? '更新商品' : '保存商品' }}
-        </el-button>
-        <el-button @click="resetForm">
-          <el-icon><Refresh /></el-icon>重置
-        </el-button>
-        <el-button @click="goBack">
-          <el-icon><Close /></el-icon>取消
-        </el-button>
+        <div class="action-left">
+          <el-button plain @click="goBack">
+            <el-icon><ArrowLeft /></el-icon>取消
+          </el-button>
+          <el-button @click="resetForm">
+            <el-icon><Refresh /></el-icon>重置
+          </el-button>
+        </div>
+        <div class="action-right">
+          <el-button type="primary" @click="submitForm" :loading="submitting" size="large">
+            <el-icon><Check /></el-icon>{{ isEdit ? '更新商品' : '保存商品' }}
+          </el-button>
+        </div>
       </div>
     </el-form>
   </div>
@@ -169,9 +262,14 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Check, Refresh, Close, Back } from '@element-plus/icons-vue';
+import { 
+  Plus, Check, Refresh, Close, Back, ArrowLeft, InfoFilled,
+  Goods, Document, Picture, Upload, View, RefreshRight,
+  Folder, QuestionFilled
+} from '@element-plus/icons-vue';
 import { addProduct, updateProduct, getProductDetail } from '../../api/product';
 import { getCategoryList } from '../../api/category';
+import { getToken } from '../../utils/auth';
 
 const router = useRouter();
 const route = useRoute();
@@ -188,10 +286,29 @@ const submitting = ref(false);
 // 分类选项
 const categoryOptions = ref([]);
 
+// 获取分类名称
+const getCategoryName = (categoryId) => {
+  if (!categoryId) return '';
+  const category = categoryOptions.value.find(item => String(item.id) === String(categoryId));
+  return category ? category.name : '';
+};
+
 // 上传请求头
 const uploadHeaders = computed(() => {
+  const token = getToken();
+  console.log('上传图片使用的token:', token);
+  
+  // 检查token是否存在
+  if (!token) {
+    ElMessage.warning('未检测到登录凭证，请重新登录');
+    setTimeout(() => {
+      router.push('/login');
+    }, 2000);
+    return {};
+  }
+  
   return {
-    Authorization: `Bearer ${localStorage.getItem('token')}`
+    Authorization: `Bearer ${token}`
   };
 });
 
@@ -242,14 +359,25 @@ const fetchCategoryList = async () => {
 const fetchProductDetail = async (id) => {
   try {
     const response = await getProductDetail(id);
-    if (response.data && response.data.product) {
-      const product = response.data.product;
-      Object.keys(form).forEach(key => {
-        if (product[key] !== undefined) {
-          form[key] = product[key];
-        }
-      });
-      form.categoryId = String(product.category_id || product.categoryId || '');
+    // 检查响应数据结构
+    console.log('商品详情响应:', response);
+    
+    // 根据截图中的响应格式调整数据处理逻辑
+    if (response.data) {
+      const product = response.data;
+      
+      // 映射后端字段到表单字段
+      form.id = product.id;
+      form.name = product.name || '';
+      form.price = typeof product.price === 'string' ? parseFloat(product.price) : product.price || 0;
+      form.stock = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock || 0;
+      form.image = product.image_url || product.image || '';
+      form.description = product.description || '';
+      // 状态字段可能是is_active(布尔值)或status(数字)
+      form.status = product.status === 1 || product.is_active === true ? 1 : 0;
+      // 分类ID处理
+      form.categoryId = String(product.category_id || '');
+      
       ElMessage.success('商品信息加载成功');
       // 赋值后刷新表单校验
       if (formRef.value) {
@@ -273,8 +401,28 @@ const fetchProductDetail = async (id) => {
   }
 };
 
+// 获取完整图片URL
+const getImageUrl = (url) => {
+  if (!url) return '';
+  
+  // 如果是相对路径，添加基础URL
+  if (url.startsWith('/')) {
+    // 使用当前域名作为基础URL，而不是硬编码
+    // 这样可以适应不同的部署环境
+    return url;
+  }
+  
+  // 如果已经是完整URL，直接返回
+  return url;
+};
+
 // 上传前验证
 const beforeUpload = (file) => {
+  // 检查token是否正确设置
+  const token = getToken();
+  console.log('上传前检查token:', token);
+  console.log('上传请求头:', uploadHeaders.value);
+  
   const isJPG = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/gif';
   const isLt5M = file.size / 1024 / 1024 < 5;
 
@@ -289,7 +437,10 @@ const beforeUpload = (file) => {
 
 // 上传成功回调
 const handleUploadSuccess = (res) => {
-  if (res.code === 0 && res.data && res.data.url) {
+  console.log('上传响应:', res);
+  
+  // 检查响应格式
+  if (res.code === 200 && res.data && res.data.url) {
     form.image = res.data.url;
     
     // 测试图片是否可以加载
@@ -298,12 +449,24 @@ const handleUploadSuccess = (res) => {
       ElMessage.success('图片上传成功');
     };
     img.onerror = () => {
+      console.error('图片加载失败:', res.data.url);
       ElMessage.warning('图片上传成功，但可能无法正常显示，请检查网络或服务器配置');
     };
-    img.src = res.data.url;
+    img.src = getImageUrl(res.data.url);
+  } else if (res.data && res.data.url) {
+    // 兼容其他响应格式
+    form.image = res.data.url;
+    ElMessage.success('图片上传成功');
   } else {
-    ElMessage.error(res.message || '上传失败');
+    console.error('上传响应格式异常:', res);
+    ElMessage.error(res.message || '上传失败，响应格式异常');
   }
+};
+
+// 上传错误回调
+const handleUploadError = (error) => {
+  console.error('上传错误:', error);
+  ElMessage.error('上传失败，请检查网络或服务器配置');
 };
 
 // 提交表单
@@ -316,12 +479,23 @@ const submitForm = () => {
     
     submitting.value = true;
     try {
+      // 准备提交的数据，确保格式与后端API一致
+      const submitData = {
+        name: form.name,
+        category_id: parseInt(form.categoryId),
+        price: parseFloat(form.price),
+        stock: parseInt(form.stock),
+        image_url: form.image,
+        description: form.description,
+        status: parseInt(form.status)
+      };
+      
       if (isEdit.value) {
-        await updateProduct(form);
+        await updateProduct(form.id, submitData);
         ElMessage.success('商品更新成功');
         goBack();
       } else {
-        await addProduct(form);
+        await addProduct(submitData);
         ElMessage.success('商品添加成功');
         goBack();
       }
@@ -391,68 +565,161 @@ watch(
 
 <style scoped>
 .page-container {
-  padding: 20px;
+  padding: 24px;
+  background-color: #f5f7fa;
+  min-height: calc(100vh - 84px);
 }
 
+/* 页面头部样式 */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  background-color: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.page-title-container {
+  display: flex;
+  align-items: center;
+}
+
+.page-icon {
+  font-size: 24px;
+  color: #409EFF;
+  margin-right: 12px;
+}
+
+.page-title-content {
+  display: flex;
+  flex-direction: column;
 }
 
 .page-title {
-  font-size: 22px;
-  font-weight: bold;
+  font-size: 20px;
+  font-weight: 600;
   color: #303133;
+  margin: 0;
 }
 
+.page-subtitle {
+  font-size: 14px;
+  color: #909399;
+  margin-top: 4px;
+}
+
+/* 步骤条样式 */
+.steps-bar {
+  margin-bottom: 24px;
+  padding: 16px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+/* 表单样式 */
 .product-form {
   margin-bottom: 20px;
 }
 
 .form-card {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
   transition: all 0.3s;
 }
 
 .form-card:hover {
-  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.1);
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-weight: bold;
+}
+
+.card-title {
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  font-size: 16px;
+  color: #303133;
+}
+
+.card-icon {
+  margin-right: 8px;
+  color: #409EFF;
+  font-size: 18px;
+}
+
+.help-icon {
+  color: #909399;
+  cursor: pointer;
   font-size: 16px;
 }
 
-.image-form-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+.help-icon:hover {
+  color: #409EFF;
 }
 
-.product-image-uploader {
+/* 状态开关样式 */
+.status-switch {
+  margin-right: 12px;
+}
+
+.status-text {
+  font-size: 14px;
+  color: #909399;
+}
+
+/* 分类选项样式 */
+.category-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 描述文本域样式 */
+.description-textarea :deep(.el-textarea__inner) {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  padding: 12px;
+}
+
+/* 图片上传区域样式 */
+.image-card {
+  height: 100%;
+}
+
+.upload-container {
   width: 100%;
-  cursor: pointer;
 }
 
 .upload-area {
   width: 100%;
-  height: 200px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
+  height: 240px;
+  border: 2px dashed #d9d9d9;
+  border-radius: 8px;
   display: flex;
   justify-content: center;
   align-items: center;
   overflow: hidden;
   transition: all 0.3s;
+  position: relative;
+  background-color: #fafafa;
 }
 
 .upload-area:hover {
   border-color: #409EFF;
+  background-color: #f5f7fa;
+}
+
+.upload-area.has-image:hover .image-overlay {
+  opacity: 1;
 }
 
 .upload-placeholder {
@@ -460,12 +727,13 @@ watch(
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  color: #8c939d;
+  color: #909399;
 }
 
 .upload-icon {
-  font-size: 28px;
-  margin-bottom: 8px;
+  font-size: 36px;
+  margin-bottom: 12px;
+  color: #c0c4cc;
 }
 
 .upload-text {
@@ -475,60 +743,176 @@ watch(
 .product-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+}
+
+.image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+  color: #fff;
+}
+
+.image-overlay .upload-icon {
+  color: #fff;
+  font-size: 32px;
 }
 
 .upload-tips {
-  margin-top: 10px;
+  margin-top: 16px;
   width: 100%;
 }
 
-.image-preview {
-  margin-top: 20px;
+.upload-alert {
+  border-radius: 8px;
+}
+
+.upload-requirements {
+  padding-left: 0;
+  list-style: none;
+  margin: 8px 0 0 0;
+}
+
+.upload-requirements li {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.upload-requirements li .el-icon {
+  margin-right: 6px;
+  color: #67c23a;
+}
+
+/* 商品预览样式 */
+.preview-section {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed #e4e7ed;
 }
 
 .preview-title {
-  font-size: 14px;
-  color: #606266;
-  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 16px;
 }
 
-.preview-container {
+.preview-title .el-icon {
+  margin-right: 6px;
+  color: #409EFF;
+}
+
+.product-preview-card {
+  background-color: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.preview-image-container {
   width: 100%;
-  height: 150px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
+  height: 180px;
+  overflow: hidden;
+  background-color: #f5f7fa;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden;
-  background-color: #f5f7fa;
 }
 
 .preview-image {
-  max-width: 100%;
-  max-height: 100%;
-  object-fit: contain;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
+.no-image {
+  color: #909399;
+  font-size: 14px;
+}
+
+.preview-info {
+  padding: 12px;
+}
+
+.preview-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.preview-price {
+  font-size: 18px;
+  color: #f56c6c;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.preview-category {
+  font-size: 13px;
+  color: #909399;
+  background-color: #f5f7fa;
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+/* 表单操作按钮样式 */
 .form-actions {
   display: flex;
-  justify-content: center;
-  gap: 15px;
-  margin-top: 30px;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  background-color: #fff;
+  padding: 16px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.action-left {
+  display: flex;
+  gap: 12px;
 }
 
 /* 响应式调整 */
 @media screen and (max-width: 768px) {
-  .form-actions {
-    flex-direction: column;
-    align-items: center;
+  .page-container {
+    padding: 16px;
   }
   
-  .form-actions .el-button {
+  .form-actions {
+    flex-direction: column-reverse;
+    gap: 16px;
+  }
+  
+  .action-left, .action-right {
     width: 100%;
-    margin-left: 0;
-    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+  }
+  
+  .action-left {
+    gap: 12px;
+  }
+  
+  .action-right .el-button {
+    width: 100%;
   }
 }
 </style> 
