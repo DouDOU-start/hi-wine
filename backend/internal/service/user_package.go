@@ -41,6 +41,9 @@ type UserPackageService interface {
 
 	// ActivateUserPackageAfterPayment 支付成功后激活用户套餐
 	ActivateUserPackageAfterPayment(ctx context.Context, orderID int64) error
+
+	// CheckAndUpdatePackageStatus 检查并更新单个用户套餐的状态
+	CheckAndUpdatePackageStatus(ctx context.Context, userPackage *entity.UserPackages) error
 }
 
 // userPackageService 用户套餐服务实现
@@ -55,6 +58,35 @@ var userPackageServiceInstance = userPackageService{}
 // UserPackage 获取用户套餐服务实例
 func UserPackage() UserPackageService {
 	return &userPackageServiceInstance
+}
+
+// CheckAndUpdatePackageStatus 检查并更新单个用户套餐的状态
+func (s *userPackageService) CheckAndUpdatePackageStatus(ctx context.Context, userPackage *entity.UserPackages) error {
+	// 如果套餐状态已经是过期状态，则无需更新
+	if userPackage.Status == "expired" {
+		return nil
+	}
+
+	// 如果套餐状态是激活状态，且结束时间已过期，则更新为过期状态
+	if userPackage.Status == "active" && userPackage.EndTime != nil && userPackage.EndTime.Before(gtime.Now()) {
+		_, err := g.DB().Model("user_packages").
+			Data(g.Map{
+				"status":     "expired",
+				"updated_at": gtime.Now(),
+			}).
+			Where("id", userPackage.Id).
+			Update()
+
+		if err != nil {
+			return err
+		}
+
+		// 更新当前对象的状态
+		userPackage.Status = "expired"
+		userPackage.UpdatedAt = gtime.Now()
+	}
+
+	return nil
 }
 
 // GetUserPackageList 获取用户套餐列表（支持分页和筛选）
@@ -109,6 +141,13 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 		return nil, 0, err
 	}
 
+	// 实时检查并更新套餐状态
+	for i := range userPackages {
+		if err = s.CheckAndUpdatePackageStatus(ctx, &userPackages[i]); err != nil {
+			g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
+		}
+	}
+
 	// 转换为API响应格式
 	list = make([]v1.AdminUserPackage, 0, len(userPackages))
 	for _, item := range userPackages {
@@ -147,6 +186,11 @@ func (s *userPackageService) GetUserPackageDetail(ctx context.Context, id int64)
 	}
 	if userPackage.Id == 0 {
 		return nil, gerror.New("用户套餐不存在")
+	}
+
+	// 实时检查并更新套餐状态
+	if err = s.CheckAndUpdatePackageStatus(ctx, &userPackage); err != nil {
+		g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
 	}
 
 	// 转换为API响应格式
@@ -342,26 +386,35 @@ func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v
 
 // GetUserActivePackages 获取用户有效套餐
 func (s *userPackageService) GetUserActivePackages(ctx context.Context, userID int64) (list []v1.AdminUserPackage, err error) {
-	// 当前时间
-	now := gtime.Now()
-
-	// 查询用户有效套餐
+	// 查询用户激活状态的套餐
 	var userPackages []entity.UserPackages
 	err = g.DB().Model("user_packages").
 		Where("user_id", userID).
 		Where("status", "active").
-		WhereOrLTE("end_time", now).
-		WhereOr("end_time IS NULL").
-		WhereOrLTE("start_time", now).
 		Order("id DESC").
 		Scan(&userPackages)
 	if err != nil {
 		return nil, err
 	}
 
+	// 实时检查并更新套餐状态
+	for i := range userPackages {
+		if err = s.CheckAndUpdatePackageStatus(ctx, &userPackages[i]); err != nil {
+			g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
+		}
+	}
+
+	// 过滤出仍然是激活状态的套餐
+	activePackages := make([]entity.UserPackages, 0, len(userPackages))
+	for _, pkg := range userPackages {
+		if pkg.Status == "active" {
+			activePackages = append(activePackages, pkg)
+		}
+	}
+
 	// 转换为API响应格式
-	list = make([]v1.AdminUserPackage, 0, len(userPackages))
-	for _, item := range userPackages {
+	list = make([]v1.AdminUserPackage, 0, len(activePackages))
+	for _, item := range activePackages {
 		var adminUserPackage v1.AdminUserPackage
 		if err = gconv.Struct(item, &adminUserPackage); err != nil {
 			return nil, err

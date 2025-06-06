@@ -10,6 +10,7 @@ import (
 	"backend/internal/controller/qrcode"
 	"backend/internal/controller/user"
 	"backend/internal/middleware"
+	"backend/internal/service"
 	"backend/internal/utility/minio"
 	"context"
 
@@ -31,6 +32,12 @@ var (
 				g.Log().Fatal(ctx, "MinIO初始化失败: ", err)
 			}
 			g.Log().Info(ctx, "MinIO初始化成功")
+
+			// 初始化定时任务
+			if err := service.Cron().StartCronJobs(); err != nil {
+				g.Log().Fatal(ctx, "定时任务初始化失败: ", err)
+			}
+			g.Log().Info(ctx, "定时任务初始化成功")
 
 			s.Group("/", func(group *ghttp.RouterGroup) {
 				group.Middleware(

@@ -38,12 +38,20 @@ type Order struct {
 	TotalNotes    string      `json:"total_notes,omitempty"`
 }
 
+// 套餐信息
+type PackageInfo struct {
+	Status    string `json:"status"`     // 套餐状态
+	StartTime string `json:"start_time"` // 开始时间
+	EndTime   string `json:"end_time"`   // 结束时间
+}
+
 type OrderItem struct {
-	ProductID     int64   `json:"product_id"`
-	Name          string  `json:"name"`
-	Quantity      int     `json:"quantity"`
-	ItemPrice     float64 `json:"item_price"`
-	IsPackageItem bool    `json:"is_package_item"`
-	UserPackageID int64   `json:"user_package_id,omitempty"`
-	Notes         string  `json:"notes,omitempty"`
+	ProductID     int64        `json:"product_id"`
+	Name          string       `json:"name"`
+	Quantity      int          `json:"quantity"`
+	ItemPrice     float64      `json:"item_price"`
+	IsPackageItem bool         `json:"is_package_item"`
+	UserPackageID int64        `json:"user_package_id,omitempty"`
+	Notes         string       `json:"notes,omitempty"`
+	PackageInfo   *PackageInfo `json:"package_info,omitempty"` // 套餐信息，仅当IsPackageItem为true时有值
 }

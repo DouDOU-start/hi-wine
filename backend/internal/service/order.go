@@ -276,6 +276,62 @@ func (s *orderService) GetOrderDetail(ctx context.Context, orderId int64, userId
 			UserPackageID: int64(item.UserPackageId),
 			Notes:         "", // 商品备注字段，如果需要可以添加到数据库表中
 		}
+
+		// 如果是套餐商品，查询套餐详情
+		if item.IsPackageItem == 1 && item.UserPackageId > 0 {
+			// 查询用户套餐详情
+			packageDetail, err := UserPackage().GetUserPackageDetail(ctx, int64(item.UserPackageId))
+			if err == nil && packageDetail != nil {
+				// 添加套餐状态和有效期信息
+				result.Items[i].PackageInfo = &orderv1.PackageInfo{
+					Status:    packageDetail.Status,
+					StartTime: packageDetail.StartTime,
+					EndTime:   packageDetail.EndTime,
+				}
+			}
+		}
+	}
+
+	// 5. 如果订单商品为空，但是订单是套餐订单，则查询关联的套餐信息
+	if len(orderItems) == 0 {
+		// 查询是否有关联的套餐
+		var userPackage entity.UserPackages
+		err = g.DB().Model("user_packages").
+			Where("order_id", orderId).
+			Scan(&userPackage)
+
+		if err == nil && userPackage.Id > 0 {
+			// 查询套餐详情
+			packageInfo, err := UserPackage().GetUserPackageDetail(ctx, int64(userPackage.Id))
+			if err == nil && packageInfo != nil {
+				// 查询套餐商品信息
+				var packageDetail entity.DrinkAllYouCanPackages
+				err = g.DB().Model("drink_all_you_can_packages").
+					Where("id", userPackage.PackageId).
+					Scan(&packageDetail)
+
+				if err == nil && packageDetail.Id > 0 {
+					// 创建一个套餐商品项
+					packageItem := orderv1.OrderItem{
+						ProductID:     int64(packageDetail.Id),
+						Name:          packageDetail.Name,
+						Quantity:      1,
+						ItemPrice:     packageDetail.Price,
+						IsPackageItem: true,
+						UserPackageID: int64(userPackage.Id),
+						Notes:         "",
+						PackageInfo: &orderv1.PackageInfo{
+							Status:    packageInfo.Status,
+							StartTime: packageInfo.StartTime,
+							EndTime:   packageInfo.EndTime,
+						},
+					}
+
+					// 添加到订单商品列表
+					result.Items = append(result.Items, packageItem)
+				}
+			}
+		}
 	}
 
 	return result, nil
@@ -358,6 +414,62 @@ func (s *orderService) GetUserOrderList(ctx context.Context, req *UserOrderListR
 				UserPackageID: int64(item.UserPackageId),
 				Notes:         "", // 商品备注字段，如果需要可以添加到数据库表中
 			}
+
+			// 如果是套餐商品，查询套餐详情
+			if item.IsPackageItem == 1 && item.UserPackageId > 0 {
+				// 查询用户套餐详情
+				packageDetail, err := UserPackage().GetUserPackageDetail(ctx, int64(item.UserPackageId))
+				if err == nil && packageDetail != nil {
+					// 添加套餐状态和有效期信息
+					result[i].Items[j].PackageInfo = &orderv1.PackageInfo{
+						Status:    packageDetail.Status,
+						StartTime: packageDetail.StartTime,
+						EndTime:   packageDetail.EndTime,
+					}
+				}
+			}
+		}
+
+		// 5.4 如果订单项为空，但是订单是套餐订单，则查询关联的套餐信息
+		if len(orderItems) == 0 {
+			// 查询是否有关联的套餐
+			var userPackage entity.UserPackages
+			err = g.DB().Model("user_packages").
+				Where("order_id", order.Id).
+				Scan(&userPackage)
+
+			if err == nil && userPackage.Id > 0 {
+				// 查询套餐详情
+				packageInfo, err := UserPackage().GetUserPackageDetail(ctx, int64(userPackage.Id))
+				if err == nil && packageInfo != nil {
+					// 查询套餐商品信息
+					var packageDetail entity.DrinkAllYouCanPackages
+					err = g.DB().Model("drink_all_you_can_packages").
+						Where("id", userPackage.PackageId).
+						Scan(&packageDetail)
+
+					if err == nil && packageDetail.Id > 0 {
+						// 创建一个套餐商品项
+						packageItem := orderv1.OrderItem{
+							ProductID:     int64(packageDetail.Id),
+							Name:          packageDetail.Name,
+							Quantity:      1,
+							ItemPrice:     packageDetail.Price,
+							IsPackageItem: true,
+							UserPackageID: int64(userPackage.Id),
+							Notes:         "",
+							PackageInfo: &orderv1.PackageInfo{
+								Status:    packageInfo.Status,
+								StartTime: packageInfo.StartTime,
+								EndTime:   packageInfo.EndTime,
+							},
+						}
+
+						// 添加到订单商品列表
+						result[i].Items = append(result[i].Items, packageItem)
+					}
+				}
+			}
 		}
 	}
 
@@ -428,13 +540,13 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 		return nil, 0, err
 	}
 
-	// 3. 分页参数处理
+	// 3. 分页参数
 	page := req.Page
-	if page < 1 {
+	if page <= 0 {
 		page = 1
 	}
 	limit := req.Limit
-	if limit < 1 {
+	if limit <= 0 {
 		limit = 10
 	}
 
@@ -450,16 +562,114 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 	// 5. 转换为API响应格式
 	result := make([]adminv1.AdminOrder, len(orders))
 	for i, order := range orders {
+		// 查询桌号信息
+		tableNumber := ""
+		if order.TableQrcodeId > 0 {
+			var tableQrcode *entity.TableQrcodes
+			err = dao.TableQrcodes.Ctx(ctx).
+				Where(dao.TableQrcodes.Columns().Id, order.TableQrcodeId).
+				Scan(&tableQrcode)
+			if err == nil && tableQrcode != nil {
+				tableNumber = tableQrcode.TableNumber
+			}
+		}
+
+		// 查询订单项
+		var orderItems []*entity.OrderItems
+		err = dao.OrderItems.Ctx(ctx).
+			Where(dao.OrderItems.Columns().OrderId, order.Id).
+			Scan(&orderItems)
+
+		// 转换订单项
+		items := make([]orderv1.OrderItem, 0)
+		if err == nil {
+			for _, item := range orderItems {
+				orderItem := orderv1.OrderItem{
+					ProductID:     int64(item.ProductId),
+					Name:          item.ProductName,
+					Quantity:      item.Quantity,
+					ItemPrice:     item.ItemPrice,
+					IsPackageItem: item.IsPackageItem == 1,
+					UserPackageID: int64(item.UserPackageId),
+				}
+
+				// 如果是套餐商品，查询套餐详情
+				if item.IsPackageItem == 1 && item.UserPackageId > 0 {
+					// 查询用户套餐详情
+					packageDetail, err := UserPackage().GetUserPackageDetail(ctx, int64(item.UserPackageId))
+					if err == nil && packageDetail != nil {
+						// 添加套餐状态和有效期信息
+						orderItem.PackageInfo = &orderv1.PackageInfo{
+							Status:    packageDetail.Status,
+							StartTime: packageDetail.StartTime,
+							EndTime:   packageDetail.EndTime,
+						}
+					}
+				}
+
+				items = append(items, orderItem)
+			}
+		}
+
+		// 如果订单项为空，但是订单是套餐订单，则查询关联的套餐信息
+		if len(items) == 0 {
+			// 查询是否有关联的套餐
+			var userPackage entity.UserPackages
+			err = g.DB().Model("user_packages").
+				Where("order_id", order.Id).
+				Scan(&userPackage)
+
+			if err == nil && userPackage.Id > 0 {
+				// 查询套餐详情
+				packageInfo, err := UserPackage().GetUserPackageDetail(ctx, int64(userPackage.Id))
+				if err == nil && packageInfo != nil {
+					// 查询套餐商品信息
+					var packageDetail entity.DrinkAllYouCanPackages
+					err = g.DB().Model("drink_all_you_can_packages").
+						Where("id", userPackage.PackageId).
+						Scan(&packageDetail)
+
+					if err == nil && packageDetail.Id > 0 {
+						// 创建一个套餐商品项
+						packageItem := orderv1.OrderItem{
+							ProductID:     int64(packageDetail.Id),
+							Name:          packageDetail.Name,
+							Quantity:      1,
+							ItemPrice:     packageDetail.Price,
+							IsPackageItem: true,
+							UserPackageID: int64(userPackage.Id),
+							Notes:         "",
+							PackageInfo: &orderv1.PackageInfo{
+								Status:    packageInfo.Status,
+								StartTime: packageInfo.StartTime,
+								EndTime:   packageInfo.EndTime,
+							},
+						}
+
+						// 添加到订单商品列表
+						items = append(items, packageItem)
+					}
+				}
+			}
+		}
+
 		result[i] = adminv1.AdminOrder{
 			ID:            int64(order.Id),
 			OrderSN:       order.OrderSn,
 			UserID:        int64(order.UserId),
 			TableQrcodeID: int64(order.TableQrcodeId),
+			TableNumber:   tableNumber,
 			TotalAmount:   order.TotalAmount,
 			PaymentStatus: order.PaymentStatus,
 			OrderStatus:   order.OrderStatus,
 			CreatedAt:     order.CreatedAt.String(),
 			UpdatedAt:     order.UpdatedAt.String(),
+			Items:         items,
+		}
+
+		// 添加支付时间（如果有）
+		if order.PaidAt != nil {
+			result[i].PaidAt = order.PaidAt.String()
 		}
 	}
 
@@ -516,9 +726,65 @@ func (s *orderService) GetOrderDetailAdmin(ctx context.Context, orderId int64) (
 			UserPackageID: int64(item.UserPackageId),
 			Notes:         "", // 商品备注字段，如果需要可以添加到数据库表中
 		}
+
+		// 如果是套餐商品，查询套餐详情
+		if item.IsPackageItem == 1 && item.UserPackageId > 0 {
+			// 查询用户套餐详情
+			packageDetail, err := UserPackage().GetUserPackageDetail(ctx, int64(item.UserPackageId))
+			if err == nil && packageDetail != nil {
+				// 添加套餐状态和有效期信息
+				items[i].PackageInfo = &orderv1.PackageInfo{
+					Status:    packageDetail.Status,
+					StartTime: packageDetail.StartTime,
+					EndTime:   packageDetail.EndTime,
+				}
+			}
+		}
 	}
 
-	// 5. 转换为API响应格式
+	// 5. 如果订单项为空，但是订单是套餐订单，则查询关联的套餐信息
+	if len(orderItems) == 0 {
+		// 查询是否有关联的套餐
+		var userPackage entity.UserPackages
+		err = g.DB().Model("user_packages").
+			Where("order_id", orderId).
+			Scan(&userPackage)
+
+		if err == nil && userPackage.Id > 0 {
+			// 查询套餐详情
+			packageInfo, err := UserPackage().GetUserPackageDetail(ctx, int64(userPackage.Id))
+			if err == nil && packageInfo != nil {
+				// 查询套餐商品信息
+				var packageDetail entity.DrinkAllYouCanPackages
+				err = g.DB().Model("drink_all_you_can_packages").
+					Where("id", userPackage.PackageId).
+					Scan(&packageDetail)
+
+				if err == nil && packageDetail.Id > 0 {
+					// 创建一个套餐商品项
+					packageItem := orderv1.OrderItem{
+						ProductID:     int64(packageDetail.Id),
+						Name:          packageDetail.Name,
+						Quantity:      1,
+						ItemPrice:     packageDetail.Price,
+						IsPackageItem: true,
+						UserPackageID: int64(userPackage.Id),
+						Notes:         "",
+						PackageInfo: &orderv1.PackageInfo{
+							Status:    packageInfo.Status,
+							StartTime: packageInfo.StartTime,
+							EndTime:   packageInfo.EndTime,
+						},
+					}
+
+					// 添加到订单商品列表
+					items = append(items, packageItem)
+				}
+			}
+		}
+	}
+
+	// 6. 转换为API响应格式
 	result := &adminv1.AdminOrder{
 		ID:            int64(order.Id),
 		OrderSN:       order.OrderSn,
