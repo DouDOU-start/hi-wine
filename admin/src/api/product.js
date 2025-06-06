@@ -3,26 +3,34 @@ import request from '../utils/request';
 // 获取商品列表
 export function getProductList(params) {
   return request({
-    url: '/api/product/list',
+    url: '/admin/products',
     method: 'get',
     params
+  });
+}
+
+// 获取商品详情
+export function getProductDetail(id) {
+  return request({
+    url: `/admin/products/${id}`,
+    method: 'get'
   });
 }
 
 // 添加商品
 export function addProduct(data) {
   return request({
-    url: '/api/product/add',
+    url: '/admin/products',
     method: 'post',
     data
   });
 }
 
 // 更新商品
-export function updateProduct(data) {
+export function updateProduct(id, data) {
   return request({
-    url: '/api/product/update',
-    method: 'post',
+    url: `/admin/products/${id}`,
+    method: 'put',
     data
   });
 }
@@ -30,35 +38,25 @@ export function updateProduct(data) {
 // 删除商品
 export function deleteProduct(id) {
   return request({
-    url: '/api/product/delete',
-    method: 'post',
-    data: { id }
-  });
-}
-
-// 获取商品详情
-export function getProductDetail(id) {
-  return request({
-    url: '/api/product/detail',
-    method: 'get',
-    params: { id }
+    url: `/admin/products/${id}`,
+    method: 'delete'
   });
 }
 
 // 上下架商品
 export function updateProductStatus(id, status) {
   return request({
-    url: '/api/product/status',
-    method: 'post',
-    data: { id, status }
+    url: `/admin/products/${id}/status`,
+    method: 'put',
+    data: { status }
   });
 }
 
 // 批量更新商品状态
 export function batchUpdateProductStatus(ids, status) {
   return request({
-    url: '/api/product/batch-status',
-    method: 'post',
+    url: '/admin/products/batch/status',
+    method: 'put',
     data: { ids, status }
   });
 }
@@ -69,7 +67,7 @@ export function uploadProductImage(file) {
   formData.append('file', file);
   
   return request({
-    url: '/api/admin/upload/image',
+    url: '/admin/upload/image',
     method: 'post',
     data: formData,
     headers: {

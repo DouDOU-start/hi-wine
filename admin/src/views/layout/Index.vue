@@ -41,6 +41,34 @@
           <template #title>订单管理</template>
         </el-menu-item>
         
+        <el-sub-menu index="/package">
+          <template #title>
+            <el-icon><component :is="'Tickets'" /></el-icon>
+            <span>畅饮套餐管理</span>
+          </template>
+          <el-menu-item index="/package/list">套餐列表</el-menu-item>
+          <el-menu-item index="/package/add">添加套餐</el-menu-item>
+          <el-menu-item index="/package/user-packages">用户套餐</el-menu-item>
+        </el-sub-menu>
+        
+        <el-sub-menu index="/table">
+          <template #title>
+            <el-icon><component :is="'Grid'" /></el-icon>
+            <span>桌号管理</span>
+          </template>
+          <el-menu-item index="/table/list">桌号列表</el-menu-item>
+          <el-menu-item index="/table/add">添加桌号</el-menu-item>
+        </el-sub-menu>
+        
+        <el-sub-menu index="/statistics">
+          <template #title>
+            <el-icon><component :is="'DataAnalysis'" /></el-icon>
+            <span>数据统计</span>
+          </template>
+          <el-menu-item index="/statistics/sales">销售统计</el-menu-item>
+          <el-menu-item index="/statistics/packages">套餐统计</el-menu-item>
+        </el-sub-menu>
+        
         <el-menu-item index="/user/list">
           <el-icon><component :is="'User'" /></el-icon>
           <template #title>用户管理</template>
@@ -62,11 +90,17 @@
           <el-dropdown trigger="click">
             <div class="avatar-container">
               <img src="../../assets/avatar.png" class="avatar-image">
-              <span class="username">管理员</span>
+              <span class="username">{{ adminInfo.nickname }}</span>
             </div>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item @click="logout">退出登录</el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <div class="admin-info">
+                    <div>{{ adminInfo.nickname }}</div>
+                    <div class="admin-role">{{ formatRole(adminInfo.role) }}</div>
+                  </div>
+                </el-dropdown-item>
+                <el-dropdown-item divided @click="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>
           </el-dropdown>
@@ -92,12 +126,31 @@ import { ref, computed, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessageBox } from 'element-plus';
 import Breadcrumb from './components/Breadcrumb.vue';
+import { getAdminInfo, clearAuth } from '../../utils/auth';
 
 const router = useRouter();
 const route = useRoute();
 
 // 侧边栏折叠状态
 const isCollapsed = ref(false);
+
+// 管理员信息
+const adminInfo = ref({
+  username: '管理员',
+  nickname: '管理员',
+  role: 'operator',
+  avatar: '../../assets/avatar.png'
+});
+
+// 格式化角色名称
+const formatRole = (role) => {
+  const roleMap = {
+    'super_admin': '超级管理员',
+    'manager': '店长',
+    'operator': '操作员'
+  };
+  return roleMap[role] || '操作员';
+};
 
 // 切换侧边栏折叠状态
 const toggleSidebar = () => {
@@ -118,9 +171,22 @@ const logout = () => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    localStorage.removeItem('token');
+    clearAuth();
     router.push('/login');
   }).catch(() => {});
+};
+
+// 获取管理员信息
+const loadAdminInfo = () => {
+  const info = getAdminInfo();
+  if (info) {
+    adminInfo.value = {
+      username: info.username || '管理员',
+      nickname: info.nickname || info.username || '管理员',
+      role: info.role || 'operator',
+      avatar: info.avatarUrl || '../../assets/avatar.png'
+    };
+  }
 };
 
 // 初始化
@@ -128,6 +194,9 @@ onMounted(() => {
   // 从本地存储读取侧边栏状态
   const sidebarStatus = localStorage.getItem('sidebarStatus');
   isCollapsed.value = sidebarStatus === '1';
+  
+  // 加载管理员信息
+  loadAdminInfo();
 });
 </script>
 

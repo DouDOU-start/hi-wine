@@ -1,45 +1,88 @@
 import request from '../utils/request';
 
-// 用户登录
+// 管理员登录
 export function login(data) {
   return request({
-    url: '/api/admin/login',
+    url: '/admin/auth/login',
     method: 'post',
     data
   });
 }
 
-// 获取当前用户信息
-export function getUserInfo() {
+// 获取当前管理员信息
+export function getAdminInfo() {
   return request({
-    url: '/api/admin/info',
+    url: '/admin/profile',
     method: 'get'
   });
 }
 
-// 获取用户列表
-export function getUserList(params) {
+// 获取管理员列表
+export function getAdminList(params) {
   return request({
-    url: '/api/user/list',
+    url: '/admin/users',
     method: 'get',
     params
   });
 }
 
-// 更新用户状态
-export function updateUserStatus(id, status) {
+// 创建管理员
+export function createAdmin(data) {
   return request({
-    url: '/api/user/status',
+    url: '/admin/users',
     method: 'post',
-    data: { id, status }
+    data
+  });
+}
+
+// 更新管理员信息
+export function updateAdmin(id, data) {
+  return request({
+    url: `/admin/users/${id}`,
+    method: 'put',
+    data
+  });
+}
+
+// 重置管理员密码
+export function resetAdminPassword(id, newPassword) {
+  return request({
+    url: `/admin/users/${id}/reset-password`,
+    method: 'post',
+    data: { newPassword }
+  });
+}
+
+// 删除管理员
+export function deleteAdmin(id) {
+  return request({
+    url: `/admin/users/${id}`,
+    method: 'delete'
+  });
+}
+
+// 获取普通用户列表
+export function getUserList(params) {
+  return request({
+    url: '/admin/customers',
+    method: 'get',
+    params
   });
 }
 
 // 获取用户详情
 export function getUserDetail(id) {
   return request({
-    url: '/api/user/detail',
-    method: 'get',
-    params: { id }
+    url: `/admin/customers/${id}`,
+    method: 'get'
+  });
+}
+
+// 更新用户状态
+export function updateUserStatus(id, status) {
+  return request({
+    url: `/admin/users/${id}/status`,
+    method: 'put',
+    data: { status }
   });
 } 

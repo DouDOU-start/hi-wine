@@ -63,7 +63,8 @@
 import { ref, reactive, onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage } from 'element-plus';
-import { login } from '../../api/user';
+import { login, getAdminInfo } from '../../api/user';
+import { setToken, setAdminInfo } from '../../utils/auth';
 
 const router = useRouter();
 const route = useRoute();
@@ -109,13 +110,28 @@ const handleLogin = () => {
     loading.value = true;
     
     try {
+      // 登录请求
       const response = await login({
         username: loginForm.username,
         password: loginForm.password
       });
       
       // 保存token
-      localStorage.setItem('token', response.data.token);
+      const token = response.data.token;
+      setToken(token);
+      
+      // 保存管理员信息
+      if (response.data.admin) {
+        setAdminInfo(response.data.admin);
+      } else {
+        // 如果响应中没有管理员信息，尝试单独获取
+        try {
+          const adminInfoResponse = await getAdminInfo();
+          setAdminInfo(adminInfoResponse.data);
+        } catch (infoError) {
+          console.error('获取管理员信息失败:', infoError);
+        }
+      }
       
       // 登录成功提示
       ElMessage({
@@ -128,7 +144,12 @@ const handleLogin = () => {
       const redirect = route.query.redirect || '/dashboard';
       router.push(redirect);
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('登录失败:', error);
+      ElMessage({
+        message: error.message || '登录失败，请检查用户名和密码',
+        type: 'error',
+        duration: 2000
+      });
     } finally {
       loading.value = false;
     }

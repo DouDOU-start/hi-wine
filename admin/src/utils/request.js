@@ -1,17 +1,19 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
+import { getToken, clearAuth } from './auth';
+import router from '../router';
 
 // 创建axios实例
 const service = axios.create({
-  baseURL: '', // 不设置baseURL，使用相对路径
+  baseURL: '/api', // 使用Vite配置的代理路径
   timeout: 30000, // 请求超时时间增加到30秒
 });
 
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    // 从本地存储获取token
-    const token = localStorage.getItem('token');
+    // 从认证工具获取token
+    const token = getToken();
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }
@@ -28,18 +30,17 @@ service.interceptors.response.use(
   response => {
     const res = response.data;
     
-    // 如果响应码不为0，则表示有错误
-    if (res.code !== 0) {
+    // 如果响应码不为200，则表示有错误
+    if (res.code !== 200) {
       ElMessage({
         message: res.message || '服务器错误',
         type: 'error',
         duration: 5 * 1000
       });
       
-      // 如果是401，则清除token并重定向到登录页
+      // 如果是401，则清除认证信息并重定向到登录页
       if (res.code === 401) {
-        localStorage.removeItem('token');
-        window.location.href = '/login';
+        handleUnauthorized();
       }
       
       return Promise.reject(new Error(res.message || '服务器错误'));
@@ -55,8 +56,7 @@ service.interceptors.response.use(
       switch (error.response.status) {
         case 401:
           message = '未授权，请重新登录';
-          localStorage.removeItem('token');
-          window.location.href = '/login';
+          handleUnauthorized();
           break;
         case 403:
           message = '拒绝访问';
@@ -88,5 +88,17 @@ service.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// 处理未授权情况
+function handleUnauthorized() {
+  // 清除所有认证信息
+  clearAuth();
+  
+  // 获取当前路径，用于登录后跳转回来
+  const currentPath = router.currentRoute.value.fullPath;
+  
+  // 跳转到登录页面
+  router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+}
 
 export default service; 

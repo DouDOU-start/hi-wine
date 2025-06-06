@@ -77,7 +77,7 @@ export default {
   // 用户登录
   login(code) {
     // 按照微信官方API参数格式发送请求
-    return request('/wechat/login', 'POST', { 
+    return request('/auth/wechat-login', 'POST', { 
       code: code  // 临时登录凭证
     }, false);
   },

@@ -17,20 +17,19 @@
       >
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="分类名称" />
-        <el-table-column prop="icon" label="图标" width="100">
+        <el-table-column prop="sort_order" label="排序" width="100" />
+        <el-table-column label="状态" width="100">
           <template #default="scope">
-            <el-image 
-              v-if="scope.row.icon" 
-              :src="scope.row.icon" 
-              style="width: 40px; height: 40px"
-              fit="cover"
+            <el-switch
+              v-model="scope.row.is_active"
+              :active-value="true"
+              :inactive-value="false"
+              @change="handleStatusChange(scope.row)"
             />
-            <span v-else>无图标</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sort" label="排序" width="100" />
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column prop="updateTime" label="更新时间" width="180" />
+        <el-table-column prop="created_at" label="创建时间" width="180" />
+        <el-table-column prop="updated_at" label="更新时间" width="180" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <el-button 
@@ -79,21 +78,15 @@
         <el-form-item label="分类名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入分类名称" />
         </el-form-item>
-        <el-form-item label="图标">
-          <el-upload
-            class="avatar-uploader"
-            action="/api/upload/image"
-            :show-file-list="false"
-            :on-success="handleUploadSuccess"
-            :before-upload="beforeUpload"
-          >
-            <img v-if="form.icon" :src="form.icon" class="avatar" />
-            <el-icon v-else class="avatar-uploader-icon"><Plus /></el-icon>
-          </el-upload>
-          <div class="upload-tip">建议上传正方形图片，大小不超过2MB</div>
+        <el-form-item label="排序" prop="sort_order">
+          <el-input-number v-model="form.sort_order" :min="0" :max="9999" />
         </el-form-item>
-        <el-form-item label="排序" prop="sort">
-          <el-input-number v-model="form.sort" :min="0" :max="9999" />
+        <el-form-item label="状态">
+          <el-switch
+            v-model="form.is_active"
+            :active-value="true"
+            :inactive-value="false"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -109,7 +102,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getCategoryList, addCategory, updateCategory, deleteCategory } from '../../api/category';
+import { getCategoryList, addCategory, updateCategory, deleteCategory, updateCategoryStatus } from '../../api/category';
 
 // 加载状态
 const loading = ref(false);
@@ -133,8 +126,8 @@ const isEdit = ref(false);
 const form = reactive({
   id: '',
   name: '',
-  icon: '',
-  sort: 0
+  sort_order: 0,
+  is_active: true
 });
 
 // 表单验证规则
@@ -143,7 +136,7 @@ const rules = {
     { required: true, message: '请输入分类名称', trigger: 'blur' },
     { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
   ],
-  sort: [
+  sort_order: [
     { required: true, message: '请输入排序值', trigger: 'blur' }
   ]
 };
@@ -191,7 +184,12 @@ const handleAdd = () => {
 const handleEdit = (row) => {
   isEdit.value = true;
   resetForm();
-  Object.assign(form, row);
+  Object.assign(form, {
+    id: row.id,
+    name: row.name,
+    sort_order: row.sort_order,
+    is_active: row.is_active
+  });
   dialogVisible.value = true;
 };
 
@@ -213,6 +211,19 @@ const handleDelete = (row) => {
   }).catch(() => {});
 };
 
+// 更新分类状态
+const handleStatusChange = async (row) => {
+  try {
+    await updateCategoryStatus(row.id, row.is_active);
+    ElMessage.success(`已${row.is_active ? '启用' : '禁用'}分类"${row.name}"`);
+  } catch (error) {
+    console.error('更新分类状态失败:', error);
+    ElMessage.error('更新分类状态失败');
+    // 恢复原状态
+    row.is_active = !row.is_active;
+  }
+};
+
 // 重置表单
 const resetForm = () => {
   if (formRef.value) {
@@ -220,31 +231,8 @@ const resetForm = () => {
   }
   form.id = '';
   form.name = '';
-  form.icon = '';
-  form.sort = 0;
-};
-
-// 上传前验证
-const beforeUpload = (file) => {
-  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/gif';
-  const isLt2M = file.size / 1024 / 1024 < 2;
-
-  if (!isJPG) {
-    ElMessage.error('上传图标只能是 JPG/PNG/GIF 格式!');
-  }
-  if (!isLt2M) {
-    ElMessage.error('上传图标大小不能超过 2MB!');
-  }
-  return isJPG && isLt2M;
-};
-
-// 上传成功回调
-const handleUploadSuccess = (res) => {
-  if (res.code === 0 && res.data) {
-    form.icon = res.data.url;
-  } else {
-    ElMessage.error('上传失败');
-  }
+  form.sort_order = 0;
+  form.is_active = true;
 };
 
 // 提交表单
@@ -253,11 +241,17 @@ const submitForm = () => {
     if (!valid) return;
     
     try {
+      const formData = {
+        name: form.name,
+        sort_order: form.sort_order,
+        is_active: form.is_active
+      };
+      
       if (isEdit.value) {
-        await updateCategory(form);
+        await updateCategory(form.id, formData);
         ElMessage.success('更新成功');
       } else {
-        await addCategory(form);
+        await addCategory(formData);
         ElMessage.success('添加成功');
       }
       dialogVisible.value = false;
@@ -301,42 +295,5 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
-}
-
-.avatar-uploader {
-  width: 100px;
-  height: 100px;
-  border: 1px dashed #d9d9d9;
-  border-radius: 6px;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  display: inline-block;
-  vertical-align: top;
-}
-
-.avatar-uploader:hover {
-  border-color: #409EFF;
-}
-
-.avatar-uploader-icon {
-  font-size: 28px;
-  color: #8c939d;
-  width: 100px;
-  height: 100px;
-  line-height: 100px;
-  text-align: center;
-}
-
-.avatar {
-  width: 100px;
-  height: 100px;
-  display: block;
-}
-
-.upload-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 5px;
 }
 </style> 

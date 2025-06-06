@@ -3,26 +3,34 @@ import request from '../utils/request';
 // 获取分类列表
 export function getCategoryList(params) {
   return request({
-    url: '/api/category/list',
+    url: '/admin/categories',
     method: 'get',
     params
+  });
+}
+
+// 获取分类详情
+export function getCategoryDetail(id) {
+  return request({
+    url: `/admin/categories/${id}`,
+    method: 'get'
   });
 }
 
 // 添加分类
 export function addCategory(data) {
   return request({
-    url: '/api/category/add',
+    url: '/admin/categories',
     method: 'post',
     data
   });
 }
 
 // 更新分类
-export function updateCategory(data) {
+export function updateCategory(id, data) {
   return request({
-    url: '/api/category/update',
-    method: 'post',
+    url: `/admin/categories/${id}`,
+    method: 'put',
     data
   });
 }
@@ -30,17 +38,16 @@ export function updateCategory(data) {
 // 删除分类
 export function deleteCategory(id) {
   return request({
-    url: '/api/category/delete',
-    method: 'post',
-    data: { id }
+    url: `/admin/categories/${id}`,
+    method: 'delete'
   });
 }
 
-// 获取分类详情
-export function getCategoryDetail(id) {
+// 更新分类状态
+export function updateCategoryStatus(id, status) {
   return request({
-    url: '/api/category/detail',
-    method: 'get',
-    params: { id }
+    url: `/admin/categories/${id}`,
+    method: 'put',
+    data: { is_active: status }
   });
 } 
