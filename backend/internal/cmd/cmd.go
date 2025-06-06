@@ -125,6 +125,9 @@ var (
 
 // bindAdminControllerExceptLogin 绑定管理员控制器除登录外的所有方法
 func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.IAdminV1) {
+	// 绑定管理员个人信息接口
+	group.Bind(controller.AdminProfile)
+
 	// 绑定分类相关接口
 	group.Bind(controller.CategoryList)
 	group.Bind(controller.CreateCategory)

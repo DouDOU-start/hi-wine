@@ -35,6 +35,7 @@ func JwtAuth(r *ghttp.Request) {
 
 	// 3. 将用户信息写入 context
 	if claims != nil && claims.Data != nil {
+		// 处理用户ID
 		if userId, ok := claims.Data["userId"]; ok {
 			// 将 userId 转换为 int64
 			var userIdInt64 int64
@@ -58,6 +59,32 @@ func JwtAuth(r *ghttp.Request) {
 			// 设置到上下文
 			r.SetCtxVar("userId", userIdInt64)
 		}
+
+		// 处理管理员ID
+		if adminId, ok := claims.Data["id"]; ok {
+			// 将 adminId 转换为 int
+			var adminIdInt int
+			switch v := adminId.(type) {
+			case float64:
+				adminIdInt = int(v)
+			case int:
+				adminIdInt = v
+			case int64:
+				adminIdInt = int(v)
+			default:
+				// 尝试转换为float64
+				if f, ok := adminId.(float64); ok {
+					adminIdInt = int(f)
+				}
+			}
+
+			// 记录日志
+			g.Log().Debug(r.Context(), "JWT认证成功，管理员ID:", adminIdInt)
+
+			// 设置到上下文
+			r.SetCtxVar("adminId", adminIdInt)
+		}
+
 		if openid, ok := claims.Data["openid"]; ok {
 			r.SetCtxVar("openid", openid)
 		}

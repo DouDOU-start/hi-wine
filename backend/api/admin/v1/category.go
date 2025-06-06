@@ -2,6 +2,7 @@ package v1
 
 import (
 	"backend/api/common"
+	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 )
@@ -9,10 +10,12 @@ import (
 // 管理端-分类分组
 
 type AdminCategory struct {
-	ID        int64  `json:"id"`
-	Name      string `json:"name"`
-	SortOrder int    `json:"sort_order"`
-	IsActive  bool   `json:"is_active"`
+	ID        int64     `json:"id"`
+	Name      string    `json:"name"`
+	SortOrder int       `json:"sort_order"`
+	IsActive  bool      `json:"is_active"`
+	CreatedAt time.Time `json:"created_at"` // 创建时间
+	UpdatedAt time.Time `json:"updated_at"` // 更新时间
 }
 
 // 获取分类列表

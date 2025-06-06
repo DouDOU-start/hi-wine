@@ -3,7 +3,9 @@ package admin
 import (
 	"context"
 
+	"backend/api/admin"
 	v1 "backend/api/admin/v1"
+	"backend/api/common"
 	"backend/internal/service"
 )
 
@@ -11,7 +13,7 @@ import (
 type AuthController struct{}
 
 // NewAuth 创建管理员认证控制器
-func NewAuth() *AuthController {
+func NewAuth() admin.IAdminAuth {
 	return &AuthController{}
 }
 
@@ -21,11 +23,23 @@ func (c *AuthController) AdminLogin(ctx context.Context, req *v1.AdminLoginReq) 
 	result, err := service.Admin().Login(ctx, req.Username, req.Password)
 	if err != nil {
 		return &v1.AdminLoginRes{
-			Token: "",
-			AdminUser: v1.AdminUser{
-				ID:       0,
-				Username: "",
-				Role:     "",
+			Response: common.Response[struct {
+				Token     string       `json:"token"`
+				AdminUser v1.AdminUser `json:"admin_user"`
+			}]{
+				Code:    common.CodeServerError,
+				Message: err.Error(),
+				Data: struct {
+					Token     string       `json:"token"`
+					AdminUser v1.AdminUser `json:"admin_user"`
+				}{
+					Token: "",
+					AdminUser: v1.AdminUser{
+						ID:       0,
+						Username: "",
+						Role:     "",
+					},
+				},
 			},
 		}, err
 	}

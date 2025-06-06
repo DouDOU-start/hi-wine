@@ -11,7 +11,8 @@ import (
 )
 
 type IAdminV1 interface {
-	AdminLogin(ctx context.Context, req *v1.AdminLoginReq) (res *v1.AdminLoginRes, err error)
+	// 获取当前管理员信息
+	AdminProfile(ctx context.Context, req *v1.AdminProfileReq) (res *v1.AdminProfileRes, err error)
 	
 	// 分类相关接口
 	CategoryList(ctx context.Context, req *v1.AdminCategoryListReq) (res *v1.AdminCategoryListRes, err error)

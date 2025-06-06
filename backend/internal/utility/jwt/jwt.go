@@ -89,3 +89,12 @@ func GenerateTestToken() {
 	fmt.Println("Generated test token:")
 	fmt.Println(token)
 }
+
+// GetAdminIdFromCtx 从上下文中获取管理员ID
+func GetAdminIdFromCtx(ctx context.Context) int {
+	value := g.RequestFromCtx(ctx).GetCtxVar("adminId")
+	if value.IsNil() {
+		return 0
+	}
+	return value.Int()
+}

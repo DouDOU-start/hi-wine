@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"backend/api/common"
+
 	"github.com/gogf/gf/v2/frame/g"
 )
 
@@ -12,8 +14,19 @@ type AdminLoginReq struct {
 }
 
 type AdminLoginRes struct {
-	Token     string    `json:"token"`
-	AdminUser AdminUser `json:"admin_user"`
+	common.Response[struct {
+		Token     string    `json:"token"`
+		AdminUser AdminUser `json:"admin_user"`
+	}] `json:",inline"`
+}
+
+// 获取当前管理员信息
+type AdminProfileReq struct {
+	g.Meta `path:"/profile" method:"get" tags:"管理员" summary:"获取当前管理员信息"`
+}
+
+type AdminProfileRes struct {
+	common.Response[AdminUser] `json:",inline"`
 }
 
 // 管理员信息结构体

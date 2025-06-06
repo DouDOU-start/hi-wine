@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v1 "backend/api/admin/v1"
+	"backend/api/common"
 	"backend/internal/dao"
 	"backend/internal/model/entity"
 	"backend/internal/utility/jwt"
@@ -18,6 +19,9 @@ import (
 type AdminService interface {
 	// Login 管理员登录
 	Login(ctx context.Context, username, password string) (*v1.AdminLoginRes, error)
+
+	// GetProfile 获取当前管理员信息
+	GetProfile(ctx context.Context, adminId int) (*v1.AdminProfileRes, error)
 }
 
 // 管理员服务实现
@@ -83,11 +87,53 @@ func (s *adminService) Login(ctx context.Context, username, password string) (*v
 
 	// 返回登录结果
 	return &v1.AdminLoginRes{
-		Token: token,
-		AdminUser: v1.AdminUser{
-			ID:       int64(admin.Id),
-			Username: admin.Username,
-			Role:     admin.Role,
+		Response: common.Response[struct {
+			Token     string       `json:"token"`
+			AdminUser v1.AdminUser `json:"admin_user"`
+		}]{
+			Code:    common.CodeSuccess,
+			Message: "登录成功",
+			Data: struct {
+				Token     string       `json:"token"`
+				AdminUser v1.AdminUser `json:"admin_user"`
+			}{
+				Token: token,
+				AdminUser: v1.AdminUser{
+					ID:       int64(admin.Id),
+					Username: admin.Username,
+					Role:     admin.Role,
+				},
+			},
+		},
+	}, nil
+}
+
+// GetProfile 获取当前管理员信息
+func (s *adminService) GetProfile(ctx context.Context, adminId int) (*v1.AdminProfileRes, error) {
+	// 查询管理员信息
+	var admin *entity.Admins
+	err := dao.Admins.Ctx(ctx).
+		Where(dao.Admins.Columns().Id, adminId).
+		Scan(&admin)
+	if err != nil {
+		return nil, err
+	}
+
+	// 检查管理员是否存在
+	if admin == nil {
+		return nil, gerror.New("管理员不存在")
+	}
+
+	// 返回管理员信息
+	return &v1.AdminProfileRes{
+		Response: common.Response[v1.AdminUser]{
+			Code:    common.CodeSuccess,
+			Message: "获取成功",
+			Data: v1.AdminUser{
+				ID:       int64(admin.Id),
+				Username: admin.Username,
+				Role:     admin.Role,
+			},
 		},
 	}, nil
 }
