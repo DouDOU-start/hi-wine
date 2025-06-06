@@ -1,7 +1,6 @@
 package service
 
 import (
-	"backend/internal/model/entity"
 	"context"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -55,37 +54,29 @@ func (s *cronService) CheckExpiredPackages(ctx context.Context) error {
 	// 当前时间
 	now := gtime.Now()
 
-	// 查询所有已激活但已过期的套餐（状态为active，结束时间小于当前时间）
-	var expiredPackages []entity.UserPackages
-	err := g.DB().Model("user_packages").
+	// 批量更新所有已激活但已过期的套餐
+	result, err := g.DB().Model("user_packages").
+		Data(g.Map{
+			"status":     "expired",
+			"updated_at": gtime.Now(),
+		}).
 		Where("status", "active").
 		WhereLT("end_time", now).
-		Scan(&expiredPackages)
+		Update()
 
 	if err != nil {
+		g.Log().Errorf(ctx, "批量更新过期套餐状态失败: %v", err)
 		return err
 	}
 
-	g.Log().Infof(ctx, "找到 %d 个已过期的套餐", len(expiredPackages))
-
-	// 更新过期套餐状态
-	for _, pkg := range expiredPackages {
-		// 更新套餐状态为已过期
-		_, err := g.DB().Model("user_packages").
-			Data(g.Map{
-				"status":     "expired",
-				"updated_at": gtime.Now(),
-			}).
-			Where("id", pkg.Id).
-			Update()
-
-		if err != nil {
-			g.Log().Errorf(ctx, "更新套餐 ID:%d 状态失败: %v", pkg.Id, err)
-			continue
-		}
-
-		g.Log().Infof(ctx, "已将套餐 ID:%d 状态更新为已过期", pkg.Id)
+	// 获取影响的行数
+	affected, err := result.RowsAffected()
+	if err != nil {
+		g.Log().Errorf(ctx, "获取影响行数失败: %v", err)
+		return err
 	}
+
+	g.Log().Infof(ctx, "成功将 %d 个已过期的套餐状态更新为已过期", affected)
 
 	return nil
 }

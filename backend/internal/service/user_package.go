@@ -3,7 +3,9 @@ package service
 import (
 	v1 "backend/api/admin/v1"
 	userv1 "backend/api/user/v1"
+	"backend/internal/consts"
 	"backend/internal/model/entity"
+	"backend/internal/utility"
 	"context"
 	"time"
 
@@ -67,27 +69,29 @@ func UserPackage() UserPackageService {
 // CheckAndUpdatePackageStatus 检查并更新单个用户套餐的状态
 func (s *userPackageService) CheckAndUpdatePackageStatus(ctx context.Context, userPackage *entity.UserPackages) error {
 	// 如果套餐状态已经是过期状态，则无需更新
-	if userPackage.Status == "expired" {
+	if userPackage.Status == consts.PackageStatusExpired {
 		return nil
 	}
 
 	// 如果套餐状态是激活状态，且结束时间已过期，则更新为过期状态
-	if userPackage.Status == "active" && userPackage.EndTime != nil && userPackage.EndTime.Before(gtime.Now()) {
+	if userPackage.Status == consts.PackageStatusActive && userPackage.EndTime != nil && userPackage.EndTime.Before(gtime.Now()) {
 		_, err := g.DB().Model("user_packages").
 			Data(g.Map{
-				"status":     "expired",
+				"status":     consts.PackageStatusExpired,
 				"updated_at": gtime.Now(),
 			}).
 			Where("id", userPackage.Id).
 			Update()
 
 		if err != nil {
+			g.Log().Errorf(ctx, "更新套餐状态失败，套餐ID:%d, 错误:%v", userPackage.Id, err)
 			return err
 		}
 
 		// 更新当前对象的状态
-		userPackage.Status = "expired"
+		userPackage.Status = consts.PackageStatusExpired
 		userPackage.UpdatedAt = gtime.Now()
+		g.Log().Debugf(ctx, "已将套餐 ID:%d 状态更新为已过期", userPackage.Id)
 	}
 
 	return nil
@@ -111,6 +115,10 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 	}
 	if req.Status != "" {
 		m = m.Where("up.status", req.Status)
+		// 如果查询激活状态的套餐，直接在SQL中过滤过期的
+		if req.Status == consts.PackageStatusActive {
+			m = m.WhereGT("up.end_time", gtime.Now())
+		}
 	}
 	if req.StartDate != "" {
 		m = m.WhereGTE("up.created_at", req.StartDate)
@@ -122,6 +130,7 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 	// 查询总数
 	count, err := m.Count()
 	if err != nil {
+		g.Log().Errorf(ctx, "查询用户套餐总数失败: %v", err)
 		return nil, 0, err
 	}
 
@@ -142,6 +151,7 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 		Limit((page-1)*limit, limit).
 		Scan(&userPackages)
 	if err != nil {
+		g.Log().Errorf(ctx, "查询用户套餐列表失败: %v", err)
 		return nil, 0, err
 	}
 
@@ -160,19 +170,8 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 			return nil, 0, err
 		}
 
-		// 格式化时间
-		if item.StartTime != nil {
-			adminUserPackage.StartTime = item.StartTime.Format("Y-m-d H:i:s")
-		}
-		if item.EndTime != nil {
-			adminUserPackage.EndTime = item.EndTime.Format("Y-m-d H:i:s")
-		}
-		if item.CreatedAt != nil {
-			adminUserPackage.CreatedAt = item.CreatedAt.Format("Y-m-d H:i:s")
-		}
-		if item.UpdatedAt != nil {
-			adminUserPackage.UpdatedAt = item.UpdatedAt.Format("Y-m-d H:i:s")
-		}
+		// 使用工具函数格式化时间
+		utility.FormatUserPackageTimes(&item, &adminUserPackage)
 
 		list = append(list, adminUserPackage)
 	}
@@ -186,6 +185,7 @@ func (s *userPackageService) GetUserPackageDetail(ctx context.Context, id int64)
 	var userPackage entity.UserPackages
 	err = g.DB().Model("user_packages").Where("id", id).Scan(&userPackage)
 	if err != nil {
+		g.Log().Errorf(ctx, "查询用户套餐失败, ID:%d, 错误:%v", id, err)
 		return nil, err
 	}
 	if userPackage.Id == 0 {
@@ -203,19 +203,8 @@ func (s *userPackageService) GetUserPackageDetail(ctx context.Context, id int64)
 		return nil, err
 	}
 
-	// 格式化时间
-	if userPackage.StartTime != nil {
-		detail.StartTime = userPackage.StartTime.Format("Y-m-d H:i:s")
-	}
-	if userPackage.EndTime != nil {
-		detail.EndTime = userPackage.EndTime.Format("Y-m-d H:i:s")
-	}
-	if userPackage.CreatedAt != nil {
-		detail.CreatedAt = userPackage.CreatedAt.Format("Y-m-d H:i:s")
-	}
-	if userPackage.UpdatedAt != nil {
-		detail.UpdatedAt = userPackage.UpdatedAt.Format("Y-m-d H:i:s")
-	}
+	// 使用工具函数格式化时间
+	utility.FormatUserPackageTimes(&userPackage, detail)
 
 	return detail, nil
 }
@@ -271,7 +260,7 @@ func (s *userPackageService) CreateUserPackage(ctx context.Context, req *v1.Admi
 
 			// 计算结束时间
 			if packageInfo.DurationMinutes > 0 {
-				endTimeStr := startTime.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format("Y-m-d H:i:s")
+				endTimeStr := startTime.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format(consts.TimeFormatStandard)
 				endTime := gtime.NewFromStr(endTimeStr)
 				userPackage.EndTime = endTime
 			}
@@ -390,53 +379,29 @@ func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v
 
 // GetUserActivePackages 获取用户有效套餐
 func (s *userPackageService) GetUserActivePackages(ctx context.Context, userID int64) (list []v1.AdminUserPackage, err error) {
-	// 查询用户激活状态的套餐
+	// 查询用户激活状态的套餐，并且结束时间大于当前时间
 	var userPackages []entity.UserPackages
 	err = g.DB().Model("user_packages").
 		Where("user_id", userID).
-		Where("status", "active").
+		Where("status", consts.PackageStatusActive).
+		WhereGT("end_time", gtime.Now()).
 		Order("id DESC").
 		Scan(&userPackages)
 	if err != nil {
+		g.Log().Errorf(ctx, "查询用户有效套餐失败, 用户ID:%d, 错误:%v", userID, err)
 		return nil, err
 	}
 
-	// 实时检查并更新套餐状态
-	for i := range userPackages {
-		if err = s.CheckAndUpdatePackageStatus(ctx, &userPackages[i]); err != nil {
-			g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
-		}
-	}
-
-	// 过滤出仍然是激活状态的套餐
-	activePackages := make([]entity.UserPackages, 0, len(userPackages))
-	for _, pkg := range userPackages {
-		if pkg.Status == "active" {
-			activePackages = append(activePackages, pkg)
-		}
-	}
-
 	// 转换为API响应格式
-	list = make([]v1.AdminUserPackage, 0, len(activePackages))
-	for _, item := range activePackages {
+	list = make([]v1.AdminUserPackage, 0, len(userPackages))
+	for _, item := range userPackages {
 		var adminUserPackage v1.AdminUserPackage
 		if err = gconv.Struct(item, &adminUserPackage); err != nil {
 			return nil, err
 		}
 
-		// 格式化时间
-		if item.StartTime != nil {
-			adminUserPackage.StartTime = item.StartTime.Format("Y-m-d H:i:s")
-		}
-		if item.EndTime != nil {
-			adminUserPackage.EndTime = item.EndTime.Format("Y-m-d H:i:s")
-		}
-		if item.CreatedAt != nil {
-			adminUserPackage.CreatedAt = item.CreatedAt.Format("Y-m-d H:i:s")
-		}
-		if item.UpdatedAt != nil {
-			adminUserPackage.UpdatedAt = item.UpdatedAt.Format("Y-m-d H:i:s")
-		}
+		// 使用工具函数格式化时间
+		utility.FormatUserPackageTimes(&item, &adminUserPackage)
 
 		list = append(list, adminUserPackage)
 	}
@@ -452,6 +417,7 @@ func (s *userPackageService) ActivateUserPackage(ctx context.Context, userPackag
 		var userPackage entity.UserPackages
 		err := tx.Model("user_packages").Where("id", userPackageID).Scan(&userPackage)
 		if err != nil {
+			g.Log().Errorf(ctx, "查询用户套餐失败, ID:%d, 错误:%v", userPackageID, err)
 			return err
 		}
 		if userPackage.Id == 0 {
@@ -459,59 +425,62 @@ func (s *userPackageService) ActivateUserPackage(ctx context.Context, userPackag
 		}
 
 		// 检查套餐状态
-		if userPackage.Status != "pending" {
+		if userPackage.Status != consts.PackageStatusPending {
 			return gerror.New("只有待激活的套餐可以被激活")
 		}
 
-		// 检查是否已激活 - 通过检查start_time是否为空或特殊值来判断
-		specialDate := gtime.NewFromStr("0001-01-01 00:00:00")
-		if userPackage.StartTime != nil && !userPackage.StartTime.Equal(specialDate) {
-			return gerror.New("套餐已经被激活")
-		}
-
-		// 查询套餐信息，获取套餐时长
+		// 查询套餐详情，获取有效时长
 		var packageInfo entity.DrinkAllYouCanPackages
 		err = tx.Model("drink_all_you_can_packages").Where("id", userPackage.PackageId).Scan(&packageInfo)
 		if err != nil {
+			g.Log().Errorf(ctx, "查询套餐详情失败, ID:%d, 错误:%v", userPackage.PackageId, err)
 			return err
 		}
+		if packageInfo.Id == 0 {
+			return gerror.New("套餐不存在")
+		}
 
-		// 设置开始时间为当前时间
-		now := gtime.Now()
-
-		// 计算结束时间
+		// 计算开始时间和结束时间
+		startTime := gtime.Now()
 		var endTime *gtime.Time
 		if packageInfo.DurationMinutes > 0 {
-			endTimeStr := now.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format("Y-m-d H:i:s")
+			// 使用字符串格式化方式创建结束时间
+			endTimeStr := startTime.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format(consts.TimeFormatStandard)
 			endTime = gtime.NewFromStr(endTimeStr)
 		}
 
-		// 更新套餐状态
+		// 更新套餐状态为激活
 		_, err = tx.Model("user_packages").
 			Data(g.Map{
-				"start_time": now,
+				"status":     consts.PackageStatusActive,
+				"start_time": startTime,
 				"end_time":   endTime,
-				"status":     "active",
-				"updated_at": now,
+				"updated_at": gtime.Now(),
 			}).
 			Where("id", userPackageID).
 			Update()
 
-		return err
+		if err != nil {
+			g.Log().Errorf(ctx, "激活套餐失败, ID:%d, 错误:%v", userPackageID, err)
+			return err
+		}
+
+		g.Log().Infof(ctx, "已成功激活用户套餐, ID:%d", userPackageID)
+		return nil
 	})
 }
 
 // GetUserPendingPackages 获取用户待激活的套餐列表
-// 注意：在新逻辑下，套餐在购买时就会被激活，此方法主要用于处理旧数据
 func (s *userPackageService) GetUserPendingPackages(ctx context.Context, userID int64) (list []v1.AdminUserPackage, err error) {
 	// 查询用户待激活套餐
 	var userPackages []entity.UserPackages
 	err = g.DB().Model("user_packages").
 		Where("user_id", userID).
-		Where("status", "pending").
+		Where("status", consts.PackageStatusPending).
 		Order("id DESC").
 		Scan(&userPackages)
 	if err != nil {
+		g.Log().Errorf(ctx, "查询用户待激活套餐失败, 用户ID:%d, 错误:%v", userID, err)
 		return nil, err
 	}
 
@@ -523,19 +492,8 @@ func (s *userPackageService) GetUserPendingPackages(ctx context.Context, userID 
 			return nil, err
 		}
 
-		// 格式化时间
-		if item.StartTime != nil {
-			adminUserPackage.StartTime = item.StartTime.Format("Y-m-d H:i:s")
-		}
-		if item.EndTime != nil {
-			adminUserPackage.EndTime = item.EndTime.Format("Y-m-d H:i:s")
-		}
-		if item.CreatedAt != nil {
-			adminUserPackage.CreatedAt = item.CreatedAt.Format("Y-m-d H:i:s")
-		}
-		if item.UpdatedAt != nil {
-			adminUserPackage.UpdatedAt = item.UpdatedAt.Format("Y-m-d H:i:s")
-		}
+		// 使用工具函数格式化时间
+		utility.FormatUserPackageTimes(&item, &adminUserPackage)
 
 		list = append(list, adminUserPackage)
 	}
@@ -547,58 +505,46 @@ func (s *userPackageService) GetUserPendingPackages(ctx context.Context, userID 
 func (s *userPackageService) CreateUserPackageAfterPurchase(ctx context.Context, userID, packageID, orderID int64) (userPackageID int64, err error) {
 	// 开启事务
 	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// 查询套餐信息
+		// 查询套餐是否存在
 		var packageInfo entity.DrinkAllYouCanPackages
 		err = tx.Model("drink_all_you_can_packages").Where("id", packageID).Scan(&packageInfo)
 		if err != nil {
+			g.Log().Errorf(ctx, "查询套餐失败, ID:%d, 错误:%v", packageID, err)
 			return err
 		}
 		if packageInfo.Id == 0 {
 			return gerror.New("套餐不存在")
 		}
 
-		// 验证用户是否存在
-		var userCount int
-		userCount, err = tx.Model("users").Where("id", userID).Count()
-		if err != nil {
-			return err
-		}
-		if userCount == 0 {
-			return gerror.New("用户不存在")
+		// 验证套餐是否可购买
+		if packageInfo.IsActive != 1 {
+			return gerror.New("该套餐当前不可购买")
 		}
 
-		// 验证订单是否存在
-		var orderCount int
-		orderCount, err = tx.Model("orders").Where("id", orderID).Count()
-		if err != nil {
-			return err
-		}
-		if orderCount == 0 {
-			return gerror.New("订单不存在")
-		}
-
-		// 获取当前时间
+		// 创建用户套餐记录
 		now := gtime.Now()
-
-		// 创建初始状态为 pending 的套餐记录，不设置开始时间和结束时间
-		// 待支付成功后再设置开始时间和结束时间
-		_, err = tx.Exec(
-			"INSERT INTO user_packages(user_id, package_id, order_id, start_time, end_time, status, created_at, updated_at) "+
-				"VALUES(?, ?, ?, '0001-01-01 00:00:00', '0001-01-01 00:00:00', 'pending', ?, ?)",
-			userID, packageID, orderID, now, now,
-		)
+		result, err := tx.Model("user_packages").Insert(g.Map{
+			"user_id":    userID,
+			"package_id": packageID,
+			"order_id":   orderID,
+			"status":     consts.PackageStatusPending, // 待支付状态
+			"created_at": now,
+			"updated_at": now,
+		})
 		if err != nil {
+			g.Log().Errorf(ctx, "创建用户套餐记录失败, 用户ID:%d, 套餐ID:%d, 错误:%v", userID, packageID, err)
 			return err
 		}
 
-		// 获取插入的ID
-		var result gdb.Value
-		result, err = tx.GetValue("SELECT LAST_INSERT_ID()")
+		// 获取新创建的记录ID
+		lastInsertID, err := result.LastInsertId()
 		if err != nil {
+			g.Log().Errorf(ctx, "获取新创建套餐ID失败: %v", err)
 			return err
 		}
-		userPackageID = result.Int64()
 
+		userPackageID = lastInsertID
+		g.Log().Infof(ctx, "成功创建用户套餐记录, ID:%d", userPackageID)
 		return nil
 	})
 
@@ -609,55 +555,69 @@ func (s *userPackageService) CreateUserPackageAfterPurchase(ctx context.Context,
 func (s *userPackageService) ActivateUserPackageAfterPayment(ctx context.Context, orderID int64) error {
 	// 开启事务
 	return g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// 1. 查询与订单关联的用户套餐
-		var userPackage entity.UserPackages
-		err := tx.Model("user_packages").Where("order_id", orderID).Scan(&userPackage)
+		// 查询订单关联的套餐
+		var userPackages []entity.UserPackages
+		err := tx.Model("user_packages").Where("order_id", orderID).Scan(&userPackages)
 		if err != nil {
+			g.Log().Errorf(ctx, "查询订单关联套餐失败, 订单ID:%d, 错误:%v", orderID, err)
 			return err
 		}
-		if userPackage.Id == 0 {
-			return gerror.New("未找到与订单关联的用户套餐")
-		}
-
-		// 2. 检查套餐状态
-		if userPackage.Status != "pending" {
-			// 如果套餐不是待支付状态，则不需要处理
+		if len(userPackages) == 0 {
+			g.Log().Infof(ctx, "订单未关联套餐, 订单ID:%d", orderID)
 			return nil
 		}
 
-		// 3. 查询套餐信息，获取套餐时长
-		var packageInfo entity.DrinkAllYouCanPackages
-		err = tx.Model("drink_all_you_can_packages").Where("id", userPackage.PackageId).Scan(&packageInfo)
-		if err != nil {
-			return err
+		// 遍历激活所有套餐
+		for _, userPackage := range userPackages {
+			// 如果套餐已经是激活状态，则跳过
+			if userPackage.Status == consts.PackageStatusActive {
+				continue
+			}
+
+			// 查询套餐详情，获取有效时长
+			var packageInfo entity.DrinkAllYouCanPackages
+			err = tx.Model("drink_all_you_can_packages").Where("id", userPackage.PackageId).Scan(&packageInfo)
+			if err != nil {
+				g.Log().Errorf(ctx, "查询套餐详情失败, ID:%d, 错误:%v", userPackage.PackageId, err)
+				return err
+			}
+			if packageInfo.Id == 0 {
+				g.Log().Errorf(ctx, "套餐不存在, ID:%d", userPackage.PackageId)
+				return gerror.Newf("套餐ID:%d 不存在", userPackage.PackageId)
+			}
+
+			// 计算开始时间和结束时间
+			now := gtime.Now()
+			var endTime *gtime.Time
+			if packageInfo.DurationMinutes > 0 {
+				endTimeStr := now.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format(consts.TimeFormatStandard)
+				endTime = gtime.NewFromStr(endTimeStr)
+			} else {
+				// 如果没有设置时长，则默认30天
+				endTimeStr := now.AddDate(0, 1, 0).Format(consts.TimeFormatStandard)
+				endTime = gtime.NewFromStr(endTimeStr)
+			}
+
+			// 更新套餐状态为激活
+			_, err = tx.Model("user_packages").
+				Data(g.Map{
+					"status":     consts.PackageStatusActive,
+					"start_time": now,
+					"end_time":   endTime,
+					"updated_at": now,
+				}).
+				Where("id", userPackage.Id).
+				Update()
+
+			if err != nil {
+				g.Log().Errorf(ctx, "激活套餐失败, ID:%d, 错误:%v", userPackage.Id, err)
+				return err
+			}
+
+			g.Log().Infof(ctx, "已成功激活用户套餐, ID:%d", userPackage.Id)
 		}
 
-		// 4. 设置开始时间为当前时间
-		now := gtime.Now()
-
-		// 5. 计算结束时间
-		var endTime *gtime.Time
-		if packageInfo.DurationMinutes > 0 {
-			endTimeStr := now.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)).Format("Y-m-d H:i:s")
-			endTime = gtime.NewFromStr(endTimeStr)
-		} else {
-			// 如果没有设置时长，则默认30天
-			endTimeStr := now.AddDate(0, 1, 0).Format("Y-m-d H:i:s")
-			endTime = gtime.NewFromStr(endTimeStr)
-		}
-
-		// 6. 更新套餐状态为激活
-		_, err = tx.Model("user_packages").
-			Data(g.Map{
-				"start_time": now,
-				"end_time":   endTime,
-				"status":     "active",
-				"updated_at": now,
-			}).
-			Where("id", userPackage.Id).
-			Update()
-
-		return err
+		return nil
 	})
 }
 
@@ -674,9 +634,13 @@ func (s *userPackageService) GetUserMyPackages(ctx context.Context, userID int64
 	m = m.Where("up.user_id", userID)
 	if status != "" {
 		m = m.Where("up.status", status)
+		// 如果查询激活状态的套餐，直接在SQL中过滤过期的
+		if status == consts.PackageStatusActive {
+			m = m.WhereGT("up.end_time", gtime.Now())
+		}
 	}
 
-	// 查询数据
+	// 查询数据，直接在SQL中计算剩余时间
 	type JoinedResult struct {
 		entity.UserPackages         // 用户套餐信息
 		PackageName         string  `json:"package_name"` // 套餐名称
@@ -689,6 +653,7 @@ func (s *userPackageService) GetUserMyPackages(ctx context.Context, userID int64
 		Order("up.id DESC").
 		Scan(&joinedResults)
 	if err != nil {
+		g.Log().Errorf(ctx, "获取用户套餐列表失败: %v", err)
 		return nil, err
 	}
 
@@ -701,37 +666,16 @@ func (s *userPackageService) GetUserMyPackages(ctx context.Context, userID int64
 
 	// 转换为API响应格式
 	list = make([]userv1.UserMyPackage, 0, len(joinedResults))
-	nowTime := gtime.Now()
-
 	for _, item := range joinedResults {
-		// 计算剩余时间（秒）
-		var remainingTime int64 = 0
-		if item.Status == "active" && item.EndTime != nil && item.EndTime.After(nowTime) {
-			remainingTime = int64(item.EndTime.TimestampMilli()-nowTime.TimestampMilli()) / 1000
-		}
+		var userMyPackage userv1.UserMyPackage
 
-		// 创建用户套餐信息
-		userMyPackage := userv1.UserMyPackage{
-			ID:            int64(item.Id),
-			PackageID:     int64(item.PackageId),
-			PackageName:   item.PackageName,
-			Price:         item.Price,
-			Status:        item.Status,
-			OrderID:       int64(item.OrderId),
-			OrderSN:       item.OrderSN,
-			RemainingTime: remainingTime,
-		}
+		// 使用工具函数格式化时间和计算剩余时间
+		utility.FormatUserMyPackage(&item.UserPackages, &userMyPackage)
 
-		// 格式化时间
-		if item.StartTime != nil {
-			userMyPackage.StartTime = item.StartTime.Format("Y-m-d H:i:s")
-		}
-		if item.EndTime != nil {
-			userMyPackage.EndTime = item.EndTime.Format("Y-m-d H:i:s")
-		}
-		if item.CreatedAt != nil {
-			userMyPackage.CreatedAt = item.CreatedAt.Format("Y-m-d H:i:s")
-		}
+		// 设置其他字段
+		userMyPackage.PackageName = item.PackageName
+		userMyPackage.Price = item.Price
+		userMyPackage.OrderSN = item.OrderSN
 
 		list = append(list, userMyPackage)
 	}
