@@ -31,6 +31,9 @@ type ProductService interface {
 	// Delete 删除商品
 	Delete(ctx context.Context, id int64) error
 
+	// GetAdminProductDetail 获取管理员商品详情
+	GetAdminProductDetail(ctx context.Context, id int64) (*v1.AdminProductDetail, error)
+
 	// 用户端接口
 	// GetProductsByCategory 获取某分类下的商品列表
 	GetProductsByCategory(ctx context.Context, categoryID int64, page, limit int, sortBy, sortOrder string) (list []productv1.UserProduct, total int, err error)
@@ -413,6 +416,36 @@ func (s *productService) GetProductDetail(ctx context.Context, id int64) (*produ
 		Description: product.Description,
 		CategoryID:  int64(product.CategoryId),
 		Status:      product.IsActive,
+	}
+
+	return detail, nil
+}
+
+// GetAdminProductDetail 获取管理员商品详情
+func (s *productService) GetAdminProductDetail(ctx context.Context, id int64) (*v1.AdminProductDetail, error) {
+	var product *entity.Products
+	err := dao.Products.Ctx(ctx).
+		Where(dao.Products.Columns().Id, id).
+		Scan(&product)
+	if err != nil {
+		return nil, err
+	}
+	if product == nil {
+		return nil, gerror.New("商品不存在")
+	}
+
+	// 转换为管理员商品详情
+	detail := &v1.AdminProductDetail{
+		ID:          int64(product.Id),
+		Name:        product.Name,
+		Price:       product.Price,
+		ImageURL:    product.ImageUrl,
+		Stock:       product.Stock,
+		Description: product.Description,
+		CategoryID:  int64(product.CategoryId),
+		Status:      product.IsActive,
+		CreatedAt:   product.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   product.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	return detail, nil

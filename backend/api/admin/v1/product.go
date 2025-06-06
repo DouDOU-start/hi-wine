@@ -9,6 +9,20 @@ import (
 
 // 管理端-商品分组
 
+// AdminProductDetail 管理员商品详情
+type AdminProductDetail struct {
+	ID          int64   `json:"id"`                    // 商品ID
+	Name        string  `json:"name"`                  // 商品名称
+	Price       float64 `json:"price"`                 // 商品价格
+	ImageURL    string  `json:"image_url"`             // 商品图片URL
+	Stock       int     `json:"stock"`                 // 库存数量
+	Description string  `json:"description,omitempty"` // 商品描述
+	CategoryID  int64   `json:"category_id"`           // 所属分类ID
+	Status      int     `json:"status"`                // 商品状态(1:上架, 0:下架)
+	CreatedAt   string  `json:"created_at"`            // 创建时间
+	UpdatedAt   string  `json:"updated_at"`            // 更新时间
+}
+
 // 获取商品列表（分页、筛选、模糊搜索）
 type AdminProductListReq struct {
 	g.Meta     `path:"products" method:"get" tags:"管理端-商品" summary:"获取商品列表（分页、筛选、模糊搜索）"`
@@ -71,5 +85,5 @@ type AdminProductDetailReq struct {
 	ProductID int64 `json:"product_id" in:"path" v:"required#商品ID必填"`
 }
 type AdminProductDetailRes struct {
-	common.Response[productv1.UserProduct] `json:",inline"`
+	common.Response[AdminProductDetail] `json:",inline"`
 }
