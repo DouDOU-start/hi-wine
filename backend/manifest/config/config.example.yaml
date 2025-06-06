@@ -1,0 +1,36 @@
+# 服务器配置
+server:
+  address: "0.0.0.0:8000"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+  url: "http://localhost:8000"
+
+# 日志配置
+logger:
+  level: "all"
+  stdout: true
+
+# 数据库配置
+database:
+  default:
+    link: "mysql:root:password@tcp(127.0.0.1:3306)/hi-wine?loc=Local&parseTime=true"
+
+# JWT配置
+jwt:
+  secret: "hi-wine-jwt-secret-key"
+  expire: 86400  # 过期时间，单位：秒（24小时）
+
+# 微信配置
+wechat:
+  appid: "your_appid"
+  secret: "your_secret"
+
+# MinIO配置
+minio:
+  endpoint: "127.0.0.1:9000"
+  accessKey: "minioadmin"
+  secretKey: "minioadmin"
+  useSSL: false
+  bucketName: "hi-wine"
+  region: ""
+  domain: ""  # 留空，使用默认URL格式
