@@ -19,4 +19,5 @@ type IUserV1 interface {
 	WechatLogin(ctx context.Context, req *v1.WechatLoginReq) (res *v1.WechatLoginRes, err error)
 	UserProfile(ctx context.Context, req *v1.UserProfileReq) (res *v1.UserProfileRes, err error)
 	UpdateUserProfile(ctx context.Context, req *v1.UpdateUserProfileReq) (res *v1.UpdateUserProfileRes, err error)
+	UserMyPackages(ctx context.Context, req *v1.UserMyPackagesReq) (res *v1.UserMyPackagesRes, err error)
 }

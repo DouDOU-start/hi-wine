@@ -90,6 +90,7 @@ var (
 						group.Bind(userController.UpdateUserProfile)
 						group.Bind(userController.UserOrderList)
 						group.Bind(userController.UserOrderDetail)
+						group.Bind(userController.UserMyPackages)
 					})
 
 					// 其他需要认证的API

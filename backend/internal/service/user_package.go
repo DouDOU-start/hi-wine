@@ -2,6 +2,7 @@ package service
 
 import (
 	v1 "backend/api/admin/v1"
+	userv1 "backend/api/user/v1"
 	"backend/internal/model/entity"
 	"context"
 	"time"
@@ -44,6 +45,9 @@ type UserPackageService interface {
 
 	// CheckAndUpdatePackageStatus 检查并更新单个用户套餐的状态
 	CheckAndUpdatePackageStatus(ctx context.Context, userPackage *entity.UserPackages) error
+
+	// GetUserMyPackages 获取用户个人套餐列表
+	GetUserMyPackages(ctx context.Context, userID int64, status string) (list []userv1.UserMyPackage, err error)
 }
 
 // userPackageService 用户套餐服务实现
@@ -655,4 +659,82 @@ func (s *userPackageService) ActivateUserPackageAfterPayment(ctx context.Context
 
 		return err
 	})
+}
+
+// GetUserMyPackages 获取用户个人套餐列表
+func (s *userPackageService) GetUserMyPackages(ctx context.Context, userID int64, status string) (list []userv1.UserMyPackage, err error) {
+	// 构建查询条件
+	m := g.DB().Model("user_packages up")
+
+	// 关联套餐表和订单表
+	m = m.LeftJoin("drink_all_you_can_packages p", "p.id = up.package_id")
+	m = m.LeftJoin("orders o", "o.id = up.order_id")
+
+	// 添加筛选条件
+	m = m.Where("up.user_id", userID)
+	if status != "" {
+		m = m.Where("up.status", status)
+	}
+
+	// 查询数据
+	type JoinedResult struct {
+		entity.UserPackages         // 用户套餐信息
+		PackageName         string  `json:"package_name"` // 套餐名称
+		Price               float64 `json:"price"`        // 套餐价格
+		OrderSN             string  `json:"order_sn"`     // 订单号
+	}
+
+	var joinedResults []JoinedResult
+	err = m.Fields("up.*, p.name as package_name, p.price as price, o.order_sn as order_sn").
+		Order("up.id DESC").
+		Scan(&joinedResults)
+	if err != nil {
+		return nil, err
+	}
+
+	// 实时检查并更新套餐状态
+	for i := range joinedResults {
+		if err = s.CheckAndUpdatePackageStatus(ctx, &joinedResults[i].UserPackages); err != nil {
+			g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
+		}
+	}
+
+	// 转换为API响应格式
+	list = make([]userv1.UserMyPackage, 0, len(joinedResults))
+	nowTime := gtime.Now()
+
+	for _, item := range joinedResults {
+		// 计算剩余时间（秒）
+		var remainingTime int64 = 0
+		if item.Status == "active" && item.EndTime != nil && item.EndTime.After(nowTime) {
+			remainingTime = int64(item.EndTime.TimestampMilli()-nowTime.TimestampMilli()) / 1000
+		}
+
+		// 创建用户套餐信息
+		userMyPackage := userv1.UserMyPackage{
+			ID:            int64(item.Id),
+			PackageID:     int64(item.PackageId),
+			PackageName:   item.PackageName,
+			Price:         item.Price,
+			Status:        item.Status,
+			OrderID:       int64(item.OrderId),
+			OrderSN:       item.OrderSN,
+			RemainingTime: remainingTime,
+		}
+
+		// 格式化时间
+		if item.StartTime != nil {
+			userMyPackage.StartTime = item.StartTime.Format("Y-m-d H:i:s")
+		}
+		if item.EndTime != nil {
+			userMyPackage.EndTime = item.EndTime.Format("Y-m-d H:i:s")
+		}
+		if item.CreatedAt != nil {
+			userMyPackage.CreatedAt = item.CreatedAt.Format("Y-m-d H:i:s")
+		}
+
+		list = append(list, userMyPackage)
+	}
+
+	return list, nil
 }

@@ -55,3 +55,32 @@ type UserBuyPackageRes struct {
 		OrderID int64 `json:"order_id"`
 	}] `json:",inline"`
 }
+
+// 获取用户个人套餐列表
+// GET /api/v1/user/my-packages
+// 返回: 用户套餐列表
+type UserMyPackagesReq struct {
+	g.Meta `path:"/my-packages" method:"get" tags:"套餐" summary:"获取当前登录用户的套餐列表"`
+	Status string `json:"status" in:"query" description:"套餐状态筛选 (active-激活中, pending-待激活, expired-已过期, 不传则查询全部)"`
+}
+
+type UserMyPackagesRes struct {
+	common.Response[struct {
+		List []UserMyPackage `json:"list"`
+	}] `json:",inline"`
+}
+
+// 用户套餐信息结构体
+type UserMyPackage struct {
+	ID            int64   `json:"id"`             // 用户套餐ID
+	PackageID     int64   `json:"package_id"`     // 套餐ID
+	PackageName   string  `json:"package_name"`   // 套餐名称
+	Price         float64 `json:"price"`          // 套餐价格
+	Status        string  `json:"status"`         // 套餐状态 (active-激活中, pending-待激活, expired-已过期)
+	StartTime     string  `json:"start_time"`     // 开始时间
+	EndTime       string  `json:"end_time"`       // 结束时间
+	OrderID       int64   `json:"order_id"`       // 关联订单ID
+	OrderSN       string  `json:"order_sn"`       // 关联订单号
+	CreatedAt     string  `json:"created_at"`     // 创建时间
+	RemainingTime int64   `json:"remaining_time"` // 剩余时间（秒）
+}
