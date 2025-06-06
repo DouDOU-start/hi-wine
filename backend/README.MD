@@ -178,7 +178,7 @@ wechat:
 ### 认证接口
 
 - 微信登录：`/api/v1/auth/wechat-login`
-- 管理员登录：`/api/v1/admin/login`
+- 管理员登录：`/api/v1/admin/auth/login`
 
 ### 用户接口
 
