@@ -13,9 +13,13 @@ type AdminOrder struct {
 	ID            int64               `json:"id"`
 	OrderSN       string              `json:"order_sn"`
 	UserID        int64               `json:"user_id"`
+	UserName      string              `json:"user_name,omitempty"`     // 用户名称
+	UserNickname  string              `json:"user_nickname,omitempty"` // 用户昵称
+	UserPhone     string              `json:"user_phone,omitempty"`    // 用户手机号
 	TableQrcodeID int64               `json:"table_qrcode_id"`
 	TableNumber   string              `json:"table_number,omitempty"` // 桌号
 	TotalAmount   float64             `json:"total_amount"`
+	ItemCount     int                 `json:"item_count"` // 商品总数量
 	PaymentStatus string              `json:"payment_status"`
 	OrderStatus   string              `json:"order_status"`
 	CreatedAt     string              `json:"created_at"`

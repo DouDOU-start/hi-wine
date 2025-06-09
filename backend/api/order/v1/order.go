@@ -48,6 +48,7 @@ type PackageInfo struct {
 type OrderItem struct {
 	ProductID     int64        `json:"product_id"`
 	Name          string       `json:"name"`
+	ImageURL      string       `json:"image_url,omitempty"` // 商品图片地址
 	Quantity      int          `json:"quantity"`
 	ItemPrice     float64      `json:"item_price"`
 	IsPackageItem bool         `json:"is_package_item"`

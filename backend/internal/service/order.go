@@ -267,9 +267,23 @@ func (s *orderService) GetOrderDetail(ctx context.Context, orderId int64, userId
 
 	// 4. 转换订单商品
 	for i, item := range orderItems {
+		// 查询商品图片
+		var product *entity.Products
+		imageURL := ""
+		if item.ProductId > 0 {
+			err = dao.Products.Ctx(ctx).
+				Where(dao.Products.Columns().Id, item.ProductId).
+				Fields("image_url").
+				Scan(&product)
+			if err == nil && product != nil {
+				imageURL = product.ImageUrl
+			}
+		}
+
 		result.Items[i] = orderv1.OrderItem{
 			ProductID:     int64(item.ProductId),
 			Name:          item.ProductName,
+			ImageURL:      imageURL,
 			Quantity:      item.Quantity,
 			ItemPrice:     item.ItemPrice,
 			IsPackageItem: item.IsPackageItem == 1,
@@ -315,6 +329,7 @@ func (s *orderService) GetOrderDetail(ctx context.Context, orderId int64, userId
 					packageItem := orderv1.OrderItem{
 						ProductID:     int64(packageDetail.Id),
 						Name:          packageDetail.Name,
+						ImageURL:      "", // 套餐暂无图片，设置为空字符串
 						Quantity:      1,
 						ItemPrice:     packageDetail.Price,
 						IsPackageItem: true,
@@ -405,9 +420,23 @@ func (s *orderService) GetUserOrderList(ctx context.Context, req *UserOrderListR
 
 		// 5.3 转换订单商品
 		for j, item := range orderItems {
+			// 查询商品图片
+			var product *entity.Products
+			imageURL := ""
+			if item.ProductId > 0 {
+				err = dao.Products.Ctx(ctx).
+					Where(dao.Products.Columns().Id, item.ProductId).
+					Fields("image_url").
+					Scan(&product)
+				if err == nil && product != nil {
+					imageURL = product.ImageUrl
+				}
+			}
+
 			result[i].Items[j] = orderv1.OrderItem{
 				ProductID:     int64(item.ProductId),
 				Name:          item.ProductName,
+				ImageURL:      imageURL,
 				Quantity:      item.Quantity,
 				ItemPrice:     item.ItemPrice,
 				IsPackageItem: item.IsPackageItem == 1,
@@ -453,6 +482,7 @@ func (s *orderService) GetUserOrderList(ctx context.Context, req *UserOrderListR
 						packageItem := orderv1.OrderItem{
 							ProductID:     int64(packageDetail.Id),
 							Name:          packageDetail.Name,
+							ImageURL:      "", // 套餐暂无图片，设置为空字符串
 							Quantity:      1,
 							ItemPrice:     packageDetail.Price,
 							IsPackageItem: true,
@@ -574,24 +604,60 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 			}
 		}
 
+		// 查询用户信息
+		var user *entity.Users
+		userName := ""
+		userNickname := ""
+		userPhone := ""
+		if order.UserId > 0 {
+			err = dao.Users.Ctx(ctx).
+				Where(dao.Users.Columns().Id, order.UserId).
+				Scan(&user)
+			if err == nil && user != nil {
+				userName = user.Openid // 使用openid作为用户名
+				userNickname = user.Nickname
+				userPhone = user.Phone
+			}
+		}
+
 		// 查询订单项
 		var orderItems []*entity.OrderItems
 		err = dao.OrderItems.Ctx(ctx).
 			Where(dao.OrderItems.Columns().OrderId, order.Id).
 			Scan(&orderItems)
 
+		// 计算商品总数量
+		itemCount := 0
+
 		// 转换订单项
 		items := make([]orderv1.OrderItem, 0)
 		if err == nil {
 			for _, item := range orderItems {
+				// 查询商品图片
+				var product *entity.Products
+				imageURL := ""
+				if item.ProductId > 0 {
+					err = dao.Products.Ctx(ctx).
+						Where(dao.Products.Columns().Id, item.ProductId).
+						Fields("image_url").
+						Scan(&product)
+					if err == nil && product != nil {
+						imageURL = product.ImageUrl
+					}
+				}
+
 				orderItem := orderv1.OrderItem{
 					ProductID:     int64(item.ProductId),
 					Name:          item.ProductName,
+					ImageURL:      imageURL,
 					Quantity:      item.Quantity,
 					ItemPrice:     item.ItemPrice,
 					IsPackageItem: item.IsPackageItem == 1,
 					UserPackageID: int64(item.UserPackageId),
 				}
+
+				// 累加商品数量
+				itemCount += item.Quantity
 
 				// 如果是套餐商品，查询套餐详情
 				if item.IsPackageItem == 1 && item.UserPackageId > 0 {
@@ -634,6 +700,7 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 						packageItem := orderv1.OrderItem{
 							ProductID:     int64(packageDetail.Id),
 							Name:          packageDetail.Name,
+							ImageURL:      "", // 套餐暂无图片，设置为空字符串
 							Quantity:      1,
 							ItemPrice:     packageDetail.Price,
 							IsPackageItem: true,
@@ -648,6 +715,9 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 
 						// 添加到订单商品列表
 						items = append(items, packageItem)
+
+						// 套餐也算一个商品
+						itemCount = 1
 					}
 				}
 			}
@@ -657,9 +727,13 @@ func (s *orderService) GetOrderList(ctx context.Context, req *adminv1.AdminOrder
 			ID:            int64(order.Id),
 			OrderSN:       order.OrderSn,
 			UserID:        int64(order.UserId),
+			UserName:      userName,
+			UserNickname:  userNickname,
+			UserPhone:     userPhone,
 			TableQrcodeID: int64(order.TableQrcodeId),
 			TableNumber:   tableNumber,
 			TotalAmount:   order.TotalAmount,
+			ItemCount:     itemCount,
 			PaymentStatus: order.PaymentStatus,
 			OrderStatus:   order.OrderStatus,
 			CreatedAt:     order.CreatedAt.String(),
@@ -714,18 +788,55 @@ func (s *orderService) GetOrderDetailAdmin(ctx context.Context, orderId int64) (
 		}
 	}
 
+	// 3.1 查询用户信息
+	var user *entity.Users
+	userName := ""
+	userNickname := ""
+	userPhone := ""
+	if order.UserId > 0 {
+		err = dao.Users.Ctx(ctx).
+			Where(dao.Users.Columns().Id, order.UserId).
+			Scan(&user)
+		if err == nil && user != nil {
+			userName = user.Openid // 使用openid作为用户名
+			userNickname = user.Nickname
+			userPhone = user.Phone
+		}
+	}
+
 	// 4. 转换订单项
 	items := make([]orderv1.OrderItem, len(orderItems))
+
+	// 计算商品总数量
+	itemCount := 0
+
 	for i, item := range orderItems {
+		// 查询商品图片
+		var product *entity.Products
+		imageURL := ""
+		if item.ProductId > 0 {
+			err = dao.Products.Ctx(ctx).
+				Where(dao.Products.Columns().Id, item.ProductId).
+				Fields("image_url").
+				Scan(&product)
+			if err == nil && product != nil {
+				imageURL = product.ImageUrl
+			}
+		}
+
 		items[i] = orderv1.OrderItem{
 			ProductID:     int64(item.ProductId),
 			Name:          item.ProductName,
+			ImageURL:      imageURL,
 			Quantity:      item.Quantity,
 			ItemPrice:     item.ItemPrice,
 			IsPackageItem: item.IsPackageItem == 1,
 			UserPackageID: int64(item.UserPackageId),
 			Notes:         "", // 商品备注字段，如果需要可以添加到数据库表中
 		}
+
+		// 累加商品数量
+		itemCount += item.Quantity
 
 		// 如果是套餐商品，查询套餐详情
 		if item.IsPackageItem == 1 && item.UserPackageId > 0 {
@@ -765,6 +876,7 @@ func (s *orderService) GetOrderDetailAdmin(ctx context.Context, orderId int64) (
 					packageItem := orderv1.OrderItem{
 						ProductID:     int64(packageDetail.Id),
 						Name:          packageDetail.Name,
+						ImageURL:      "", // 套餐暂无图片，设置为空字符串
 						Quantity:      1,
 						ItemPrice:     packageDetail.Price,
 						IsPackageItem: true,
@@ -779,6 +891,9 @@ func (s *orderService) GetOrderDetailAdmin(ctx context.Context, orderId int64) (
 
 					// 添加到订单商品列表
 					items = append(items, packageItem)
+
+					// 套餐也算一个商品
+					itemCount = 1
 				}
 			}
 		}
@@ -789,9 +904,13 @@ func (s *orderService) GetOrderDetailAdmin(ctx context.Context, orderId int64) (
 		ID:            int64(order.Id),
 		OrderSN:       order.OrderSn,
 		UserID:        int64(order.UserId),
+		UserName:      userName,
+		UserNickname:  userNickname,
+		UserPhone:     userPhone,
 		TableQrcodeID: int64(order.TableQrcodeId),
 		TableNumber:   tableNumber,
 		TotalAmount:   order.TotalAmount,
+		ItemCount:     itemCount,
 		PaymentStatus: order.PaymentStatus,
 		OrderStatus:   order.OrderStatus,
 		CreatedAt:     order.CreatedAt.String(),
@@ -868,29 +987,23 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderId int64, sta
 		}
 
 		// 3.2 更新订单状态
-		_, err = tx.Model(dao.Orders.Table()).
+		_, err := dao.Orders.Ctx(ctx).TX(tx).
 			Where(dao.Orders.Columns().Id, orderId).
-			Data(data).
-			Update()
+			Update(data)
 		if err != nil {
 			return err
 		}
 
-		// 3.3 如果订单状态更新为已支付，则激活相关的套餐
-		// 重要：用户套餐必须支付成功后才能激活，只有激活的套餐才能享受畅饮
-		// 这里实现了"先支付后畅饮"的业务逻辑
+		// 3.3 如果订单状态更新为已支付，并且是套餐订单，则激活套餐
 		if updateToPaid {
-			// 检查该订单是否关联套餐购买
-			var packageCount int
-			packageCount, err = tx.Model("user_packages").
+			// 查询是否有关联的套餐
+			var userPackage *entity.UserPackages
+			err = g.DB().Model("user_packages").
 				Where("order_id", orderId).
-				Count()
-			if err != nil {
-				return err
-			}
+				Scan(&userPackage)
 
-			// 如果找到关联的套餐记录，则激活套餐
-			if packageCount > 0 {
+			if err == nil && userPackage != nil && userPackage.Id > 0 {
+				// 激活套餐
 				err = UserPackage().ActivateUserPackageAfterPayment(ctx, orderId)
 				if err != nil {
 					return err
@@ -898,9 +1011,13 @@ func (s *orderService) UpdateOrderStatus(ctx context.Context, orderId int64, sta
 			}
 		}
 
-		// 获取更新后的订单详情
+		// 3.4 获取更新后的订单详情
 		result, err = s.GetOrderDetailAdmin(ctx, orderId)
-		return err
+		if err != nil {
+			return err
+		}
+
+		return nil
 	})
 
 	if err != nil {
