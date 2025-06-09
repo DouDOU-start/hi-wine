@@ -10,14 +10,20 @@
           <el-input v-model="queryParams.nickname" placeholder="请输入用户昵称" clearable @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="套餐名称">
-          <el-input v-model="queryParams.packageName" placeholder="请输入套餐名称" clearable @keyup.enter="handleQuery" />
+          <el-input v-model="queryParams.package_name" placeholder="请输入套餐名称" clearable @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
-            <el-option label="生效中" value="active" />
-            <el-option label="已过期" value="expired" />
-            <el-option label="待支付" value="pending" />
-            <el-option label="已退款" value="refunded" />
+          <el-select 
+            v-model="queryParams.status" 
+            placeholder="全部状态" 
+            clearable
+          >
+            <el-option 
+              v-for="(value, key) in STATUS_MAP" 
+              :key="key" 
+              :label="value.text" 
+              :value="key" 
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -38,27 +44,27 @@
         <el-table-column label="用户信息" min-width="180">
           <template #default="scope">
             <div class="user-info">
-              <el-avatar :size="40" :src="scope.row.user.avatarUrl" />
+              <el-avatar :size="40" :src="scope.row.avatar_url || ''" />
               <div class="user-detail">
-                <div>{{ scope.row.user.nickname }}</div>
-                <div class="user-phone">{{ scope.row.user.phone || '未绑定手机' }}</div>
+                <div>{{ scope.row.userName || '未知用户' }}</div>
+                <div class="user-phone">{{ scope.row.user_phone || '未绑定手机' }}</div>
               </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="packageName" label="套餐名称" min-width="150" />
+        <el-table-column prop="package_name" label="套餐名称" min-width="150" />
         <el-table-column label="有效期" width="280">
           <template #default="scope">
-            <div>开始: {{ formatDate(scope.row.startTime) }}</div>
-            <div>结束: {{ formatDate(scope.row.endTime) }}</div>
+            <div>开始: {{ formatDate(scope.row.start_time || scope.row.created_at) }}</div>
+            <div>结束: {{ formatDate(scope.row.end_time) }}</div>
             <div v-if="scope.row.status === 'active'" class="remaining-time">
               <el-tag size="small" effect="plain" type="success">
-                剩余: {{ scope.row.remainingMinutes }} 分钟
+                剩余: {{ scope.row.remaining_days || 0 }} 天
               </el-tag>
             </div>
             <div v-else class="status-desc">
               <el-tag size="small" effect="plain" :type="getStatusType(scope.row.status)">
-                {{ scope.row.statusDesc || getStatusText(scope.row.status) }}
+                {{ scope.row.status_desc || getStatusText(scope.row.status) }}
               </el-tag>
             </div>
           </template>
@@ -72,15 +78,15 @@
         </el-table-column>
         <el-table-column label="订单信息" width="150">
           <template #default="scope">
-            <div v-if="scope.row.order && scope.row.order.sn">
-              <div class="order-info">订单号: {{ scope.row.order.sn }}</div>
+            <div v-if="scope.row.order_sn">
+              <div class="order-info">订单号: {{ scope.row.order_sn }}</div>
             </div>
             <div v-else>-</div>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="scope">
-            {{ formatDate(scope.row.createdAt) }}
+            {{ formatDate(scope.row.created_at) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
@@ -111,8 +117,8 @@
           background
           layout="total, sizes, prev, pager, next, jumper"
           :total="total"
-          :page-size="queryParams.pageSize"
-          :current-page="queryParams.pageNum"
+          :page-size="queryParams.page_size"
+          :current-page="queryParams.page_num"
           :page-sizes="[10, 20, 50, 100]"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
@@ -127,426 +133,350 @@
       width="700px"
       destroy-on-close
     >
-      <el-descriptions v-loading="detailLoading" :column="2" border>
-        <el-descriptions-item label="套餐ID">{{ packageDetail.id }}</el-descriptions-item>
-        <el-descriptions-item label="套餐名称">{{ packageDetail.packageName }}</el-descriptions-item>
-        <el-descriptions-item label="用户昵称">{{ packageDetail.user?.nickname }}</el-descriptions-item>
-        <el-descriptions-item label="用户手机">{{ packageDetail.user?.phone || '未绑定手机' }}</el-descriptions-item>
-        <el-descriptions-item label="套餐价格">
-          <span class="price-value">¥{{ packageDetail.package?.price || 0 }}</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="有效期">
-          <el-tag size="small" effect="plain" :type="getStatusType(packageDetail.status)">
-            {{ packageDetail.validPeriod || '未知' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ formatDate(packageDetail.startTime) }}</el-descriptions-item>
-        <el-descriptions-item label="结束时间">{{ formatDate(packageDetail.endTime) }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(packageDetail.status)">
-            {{ getStatusText(packageDetail.status) }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="状态描述">{{ packageDetail.statusDesc || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="订单号">
-          <el-link v-if="packageDetail.order?.sn" type="primary" :underline="false">
-            {{ packageDetail.order?.sn || '-' }}
-          </el-link>
-          <span v-else>-</span>
-        </el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatDate(packageDetail.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item label="更新时间">{{ formatDate(packageDetail.updatedAt) }}</el-descriptions-item>
-      </el-descriptions>
-
-      <!-- 订单信息 -->
-      <div v-if="packageDetail.order" class="detail-section">
-        <h3 class="section-title">订单信息</h3>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="订单ID">{{ packageDetail.order.id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="订单号">{{ packageDetail.order.sn || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="支付状态">
-            <el-tag size="small" :type="packageDetail.order.status === 'paid' ? 'success' : 'warning'">
-              {{ packageDetail.order.status === 'paid' ? '已支付' : '未支付' }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="支付时间">{{ formatDate(packageDetail.order.payTime) || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="订单金额" :span="2">
-            <span class="price-value">¥{{ packageDetail.order.totalFee || 0 }}</span>
-          </el-descriptions-item>
-        </el-descriptions>
-      </div>
-      
-      <!-- 套餐信息 -->
-      <div v-if="packageDetail.package" class="detail-section">
-        <h3 class="section-title">套餐详情</h3>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="套餐ID">{{ packageDetail.package.id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="套餐名称">{{ packageDetail.package.name || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="套餐价格">
-            <span class="price-value">¥{{ packageDetail.package.price || 0 }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item label="时长(分钟)">{{ packageDetail.package.durationMinutes || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="套餐描述" :span="2">{{ packageDetail.package.description || '-' }}</el-descriptions-item>
-        </el-descriptions>
-      </div>
-      
-      <!-- 使用记录 -->
-      <div v-if="packageDetail.usage && packageDetail.usage.records && packageDetail.usage.records.length > 0" class="detail-section">
-        <h3 class="section-title">使用记录</h3>
-        <div class="usage-stats">
-          <el-tag type="info">总使用次数: {{ packageDetail.usage.totalUsedTimes || 0 }}</el-tag>
-          <el-tag type="success" v-if="packageDetail.usage.lastUsedTime">最后使用: {{ formatDate(packageDetail.usage.lastUsedTime) }}</el-tag>
+      <div v-loading="detailLoading">
+        <!-- 基本信息 -->
+        <div class="detail-section">
+          <h3 class="section-title">基本信息</h3>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="套餐ID">{{ packageDetail.id }}</el-descriptions-item>
+            <el-descriptions-item label="套餐名称">{{ packageDetail.package_name }}</el-descriptions-item>
+            <el-descriptions-item label="用户昵称">{{ packageDetail.userName || '未知用户' }}</el-descriptions-item>
+            <el-descriptions-item label="用户手机">{{ packageDetail.user_phone || '未绑定手机' }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getStatusType(packageDetail.status)">
+                {{ getStatusText(packageDetail.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="有效期">
+              <el-tag size="small" effect="plain" :type="getStatusType(packageDetail.status)">
+                {{ packageDetail.valid_period || '未知' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="开始时间">{{ formatDate(packageDetail.start_time) }}</el-descriptions-item>
+            <el-descriptions-item label="结束时间">{{ formatDate(packageDetail.end_time) }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatDate(packageDetail.created_at) }}</el-descriptions-item>
+          </el-descriptions>
         </div>
-        <el-table :data="packageDetail.usage.records" border style="width: 100%">
-          <el-table-column prop="orderId" label="订单ID" width="100" />
-          <el-table-column prop="productName" label="商品名称" min-width="150" />
-          <el-table-column prop="quantity" label="数量" width="80" align="center" />
-          <el-table-column label="使用时间" width="180">
-            <template #default="scope">
-              {{ formatDate(scope.row.createdAt) }}
-            </template>
-          </el-table-column>
-        </el-table>
-      </div>
-      <div v-else class="no-records">暂无使用记录</div>
-      
-      <template #footer>
-        <span class="dialog-footer">
+
+        <!-- 订单信息 -->
+        <div v-if="packageDetail.order_sn" class="detail-section">
+          <h3 class="section-title">订单信息</h3>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="订单号">{{ packageDetail.order_sn || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="支付状态">
+              <el-tag size="small" :type="packageDetail.order_status === 'paid' ? 'success' : 'warning'">
+                {{ packageDetail.order_status === 'paid' ? '已支付' : '未支付' }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="支付时间">{{ formatDate(packageDetail.pay_time) || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="订单金额">
+              <span class="price-value">¥{{ packageDetail.total_fee || packageDetail.package_price || 0 }}</span>
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <!-- 套餐详情 -->
+        <div v-if="packageDetail.package_name" class="detail-section">
+          <h3 class="section-title">套餐详情</h3>
+          <el-descriptions :column="2" border size="small">
+            <el-descriptions-item label="套餐名称">{{ packageDetail.package_name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="套餐价格">
+              <span class="price-value">¥{{ packageDetail.package_price || 0 }}</span>
+            </el-descriptions-item>
+            <el-descriptions-item label="时长(天)">{{ packageDetail.duration || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="套餐描述" :span="2">{{ packageDetail.description || '-' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        
+        <!-- 使用记录 -->
+        <div v-if="hasUsageRecords" class="detail-section">
+          <h3 class="section-title">使用记录</h3>
+          <div class="usage-stats">
+            <el-tag type="info">总使用次数: {{ packageDetail.total_used_times || packageDetail.records.length || 0 }}</el-tag>
+            <el-tag type="success" v-if="packageDetail.last_used_time">最后使用: {{ formatDate(packageDetail.last_used_time) }}</el-tag>
+          </div>
+          <el-table :data="packageDetail.records" border style="width: 100%; margin-top: 10px;">
+            <el-table-column prop="use_time" label="使用时间" width="180">
+              <template #default="scope">{{ formatDate(scope.row.use_time) }}</template>
+            </el-table-column>
+            <el-table-column prop="use_duration" label="使用时长" width="120">
+              <template #default="scope">{{ scope.row.use_duration || 0 }} 分钟</template>
+            </el-table-column>
+            <el-table-column prop="table_name" label="桌号" width="120" />
+            <el-table-column prop="note" label="备注" />
+          </el-table>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="dialog-footer">
           <el-button @click="detailDialogVisible = false">关闭</el-button>
-          <el-button 
-            v-if="packageDetail.status === 'active'"
-            type="danger"
-            @click="handleStatusChange(packageDetail, 'expired')"
-          >设为过期</el-button>
-          <el-button 
-            v-if="packageDetail.status === 'pending'"
-            type="success"
-            @click="handleStatusChange(packageDetail, 'active')"
-          >设为生效</el-button>
-        </span>
-      </template>
+          <el-button v-if="packageDetail.status === 'active'" type="danger" @click="handleStatusChangeInDialog('expired')">设为过期</el-button>
+          <el-button v-if="packageDetail.status === 'pending'" type="success" @click="handleStatusChangeInDialog('active')">设为生效</el-button>
+        </div>
+      </div>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onActivated } from 'vue';
+import { ref, reactive, onMounted, computed } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getUserPackageList, getUserPackageDetail, updateUserPackageStatus } from '../../api/package';
-
-// 防止重复请求的锁
-const isRequestLocked = ref(false);
-// 记录页面是否已经初始化
-const isInitialized = ref(false);
-// 详情请求锁
-const isDetailLocked = ref(false);
+import { getUserPackages, getUserPackageDetail, updateUserPackageStatus } from '../../api/package';
+import { formatDate as formatDateTime } from '../../utils/format';
 
 // 查询参数
 const queryParams = reactive({
-  pageNum: 1,
-  pageSize: 10,
+  page_num: 1,
+  page_size: 10,
   nickname: '',
-  packageName: '',
+  package_name: '',
   status: ''
 });
 
-// 用户套餐列表数据
+// 列表数据
 const userPackageList = ref([]);
 const total = ref(0);
 const loading = ref(false);
 
-// 用户套餐详情
+// 详情相关
 const detailDialogVisible = ref(false);
 const detailLoading = ref(false);
 const packageDetail = ref({});
 
-// 格式化日期
-const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+// 状态映射表
+const STATUS_MAP = {
+  'active': { text: '生效中', type: 'success' },
+  'expired': { text: '已过期', type: 'info' },
+  'pending': { text: '待支付', type: 'warning' },
+  'refunded': { text: '已退款', type: 'danger' }
 };
 
-// 获取状态类型
-const getStatusType = (status) => {
-  switch (status) {
-    case 'active':
-      return 'success';
-    case 'expired':
-      return 'info';
-    case 'pending':
-      return 'warning';
-    case 'refunded':
-      return 'danger';
-    default:
-      return 'info'; // 默认为info类型
-  }
+// 日期格式化
+const formatDate = (timestamp) => {
+  if (!timestamp) return '-';
+  return formatDateTime(timestamp);
 };
 
 // 获取状态文本
 const getStatusText = (status) => {
-  switch (status) {
-    case 'active':
-      return '生效中';
-    case 'expired':
-      return '已过期';
-    case 'pending':
-      return '待支付';
-    case 'refunded':
-      return '已退款';
-    default:
-      return status || '未知'; // 直接显示状态值或未知
+  return STATUS_MAP[status]?.text || '未知状态';
+};
+
+// 获取状态类型
+const getStatusType = (status) => {
+  return STATUS_MAP[status]?.type || 'info';
+};
+
+// 处理列表数据
+const processListItem = (item) => {
+  if (!item) return {};
+  
+  // 创建副本，避免直接修改原始数据
+  const result = {...item};
+  
+  // 处理时间格式
+  if (!result.start_time && result.created_at) {
+    result.start_time = result.created_at;
   }
+  
+  // 处理状态描述
+  if (!result.status_desc && result.status) {
+    result.status_desc = getStatusText(result.status);
+  }
+  
+  // 确保用户信息字段存在
+  result.user_name = result.user_name || result.username || result.nickname || '未知用户';
+  result.user_phone = result.user_phone || result.phone || result.userPhone || '未绑定手机';
+  result.avatar_url = result.avatar_url || result.avatarUrl || '';
+  
+  // 确保套餐信息字段存在
+  result.package_name = result.package_name || result.packageName || '未知套餐';
+  
+  // 确保日期字段格式一致
+  result.created_at = result.created_at || result.createdAt || '';
+  result.end_time = result.end_time || result.endTime || '';
+  
+  // 计算剩余天数
+  if (!result.remaining_days && result.end_time) {
+    try {
+      const endDate = new Date(result.end_time);
+      const today = new Date();
+      const diffTime = endDate - today;
+      result.remaining_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      if (result.remaining_days < 0) result.remaining_days = 0;
+    } catch (e) {
+      result.remaining_days = 0;
+    }
+  }
+  
+  return result;
 };
 
 // 获取用户套餐列表
 const getList = async () => {
-  if (isRequestLocked.value) return;
-  isRequestLocked.value = true;
   loading.value = true;
   try {
-    // 准备API请求参数
-    const apiParams = {
-      page: queryParams.pageNum,
-      limit: queryParams.pageSize
-    };
+    const response = await getUserPackages(queryParams);
+    console.log('API原始响应:', response);
     
-    // 添加筛选条件
-    if (queryParams.nickname) {
-      apiParams.user_id = queryParams.nickname; // 后端可能支持通过昵称或ID查询
-    }
-    if (queryParams.packageName) {
-      apiParams.package_id = queryParams.packageName; // 后端可能支持通过套餐名称或ID查询
-    }
-    if (queryParams.status) {
-      apiParams.status = queryParams.status;
-    }
+    // 确保返回的数据是数组，并对每个项目进行处理
+    let list = [];
     
-    console.log('请求参数:', apiParams);
-    const res = await getUserPackageList(apiParams);
-    console.log('用户套餐列表响应:', res);
-    
-    if (res.code === 200 && res.data) {
-      // 处理后端返回的数据
-      if (Array.isArray(res.data.list)) {
-        userPackageList.value = res.data.list.map(item => processUserPackage(item));
-      } else if (res.data.list && typeof res.data.list === 'object') {
-        // 如果是对象形式的列表，转换为数组
-        const listArray = [];
-        for (const key in res.data.list) {
-          if (Object.prototype.hasOwnProperty.call(res.data.list, key)) {
-            listArray.push(processUserPackage(res.data.list[key]));
-          }
-        }
-        userPackageList.value = listArray;
-      } else if (Array.isArray(res.data)) {
-        userPackageList.value = res.data.map(item => processUserPackage(item));
-      } else {
-        userPackageList.value = [];
-      }
-      
-      total.value = res.data.total || userPackageList.value.length;
+    // 检查响应结构，兼容不同的数据格式
+    if (response.data?.list) {
+      // 标准格式：{data: {list: [], total: 0}}
+      list = response.data.list;
+      total.value = response.data.total || 0;
+    } else if (Array.isArray(response.data)) {
+      // 数组格式：{data: []}
+      list = response.data;
+      total.value = list.length;
+    } else if (response.list) {
+      // 直接包含list的格式：{list: [], total: 0}
+      list = response.list;
+      total.value = response.total || 0;
     } else {
-      userPackageList.value = [];
+      console.error('未知的数据格式:', response);
+      list = [];
       total.value = 0;
-      console.error('获取用户套餐列表响应格式异常:', res);
     }
+    
+    console.log('识别的列表数据:', list);
+    
+    // 确保list是数组
+    if (!Array.isArray(list)) {
+      console.error('列表数据不是数组:', list);
+      list = [];
+    }
+    
+    // 处理每一项
+    userPackageList.value = list.map(item => {
+      const processed = processListItem(item);
+      console.log('单项处理前:', item);
+      console.log('单项处理后:', processed);
+      return processed;
+    });
+    
+    console.log('处理后的最终列表数据:', userPackageList.value);
+    
   } catch (error) {
-    console.error('获取用户套餐列表失败:', error);
     ElMessage.error('获取用户套餐列表失败');
+    console.error('获取用户套餐列表错误详情:', error);
     userPackageList.value = [];
     total.value = 0;
   } finally {
     loading.value = false;
-    isRequestLocked.value = false;
   }
-};
-
-// 处理用户套餐数据
-const processUserPackage = (item) => {
-  return {
-    id: item.id,
-    packageName: item.package_name || '',
-    startTime: item.start_time || '',
-    endTime: item.end_time || '',
-    status: item.status || 'unknown',
-    remainingMinutes: item.remaining_minutes || 0,
-    createdAt: item.created_at || '',
-    // 用户信息
-    user: {
-      nickname: item.user_name || '',
-      phone: item.user_phone || '',
-      avatarUrl: item.user_avatar || ''
-    },
-    // 套餐信息
-    package: {
-      id: item.package_id || 0,
-      name: item.package_name || '',
-      price: item.package_price || 0
-    },
-    // 订单信息
-    order: {
-      id: item.order_id || '',
-      sn: item.order_sn || ''
-    }
-  };
 };
 
 // 查询
 const handleQuery = () => {
-  queryParams.pageNum = 1;
+  queryParams.page_num = 1;
   getList();
 };
 
-// 重置查询
+// 重置
 const resetQuery = () => {
-  queryParams.nickname = '';
-  queryParams.packageName = '';
-  queryParams.status = '';
-  handleQuery();
+  Object.assign(queryParams, {
+    nickname: '',
+    package_name: '',
+    status: '',
+    page_num: 1
+  });
+  getList();
 };
 
-// 处理分页大小变化
+// 分页改变
 const handleSizeChange = (size) => {
-  queryParams.pageSize = size;
+  queryParams.page_size = size;
   getList();
 };
 
-// 处理页码变化
 const handleCurrentChange = (page) => {
-  queryParams.pageNum = page;
+  queryParams.page_num = page;
   getList();
 };
 
-// 查看详情
-const handleViewDetail = async (row) => {
-  if (isDetailLocked.value) return;
-  isDetailLocked.value = true;
-  detailDialogVisible.value = true;
-  detailLoading.value = true;
-  
+// 状态更改通用处理函数
+const changeStatus = async (id, status) => {
   try {
-    console.log('获取用户套餐详情，ID:', row.id);
-    const res = await getUserPackageDetail(row.id);
-    console.log('用户套餐详情原始数据:', res.data);
-    
-    if (res.code !== 200 || !res.data) {
-      throw new Error('获取详情失败或数据为空');
-    }
-    
-    // 处理返回的数据
-    const detailData = res.data;
-    
-    // 构建套餐详情对象
-    packageDetail.value = {
-      id: detailData.id,
-      packageName: detailData.package_name || '',
-      user: {
-        nickname: detailData.user_name || '',
-        phone: detailData.user_phone || '',
-        avatarUrl: detailData.user_avatar || detailData.avatar_url || ''
-      },
-      startTime: detailData.start_time || '',
-      endTime: detailData.end_time || '',
-      status: detailData.status || 'unknown',
-      remainingMinutes: detailData.remaining_minutes || 0,
-      createdAt: detailData.created_at || '',
-      updatedAt: detailData.updated_at || '',
-      validPeriod: detailData.valid_period || '',
-      statusDesc: detailData.status_desc || '',
-      
-      // 套餐信息
-      package: {
-        id: detailData.package_id || 0,
-        name: detailData.package_name || '',
-        price: detailData.package_price || 0,
-        durationMinutes: detailData.duration_minutes || 60,
-        description: detailData.package?.description || detailData.description || ''
-      },
-      
-      // 订单信息
-      order: detailData.order ? {
-        id: detailData.order.id || detailData.order_id || '',
-        sn: detailData.order.order_sn || detailData.order_sn || '',
-        status: detailData.order.pay_status || detailData.pay_status || '',
-        payTime: detailData.order.pay_time || detailData.pay_time || '',
-        totalFee: detailData.order.total_fee || detailData.total_fee || 0
-      } : null,
-      
-      // 使用记录
-      usage: {
-        totalUsedTimes: detailData.total_used_times || detailData.usage?.total_used_times || 0,
-        lastUsedTime: detailData.last_used_time || detailData.usage?.last_used_time || '',
-        records: Array.isArray(detailData.usage_records) 
-          ? detailData.usage_records.map(record => ({
-              orderId: record.order_id || '',
-              productName: record.product_name || '',
-              quantity: record.quantity || 1,
-              createdAt: record.created_at || ''
-            }))
-          : []
-      }
-    };
-    
-    console.log('处理后的套餐详情:', packageDetail.value);
+    await updateUserPackageStatus(id, { status });
+    ElMessage.success(`状态已更新为${getStatusText(status)}`);
+    getList();
+    return true;
   } catch (error) {
-    console.error('获取用户套餐详情失败:', error);
-    ElMessage.error('获取用户套餐详情失败');
-    packageDetail.value = {}; // 重置详情对象
-  } finally {
-    detailLoading.value = false;
-    isDetailLocked.value = false;
+    ElMessage.error('更新状态失败');
+    console.error('更新状态错误详情:', error);
+    return false;
   }
 };
 
-// 修改套餐状态
+// 修改状态
 const handleStatusChange = (row, status) => {
   const statusText = getStatusText(status);
-  
-  ElMessageBox.confirm(`确认将该套餐状态修改为"${statusText}"吗?`, '提示', {
+  ElMessageBox.confirm(`确认要将该用户套餐状态修改为"${statusText}"吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(() => changeStatus(row.id, status))
+    .catch(() => {});
+};
+
+// 详情对话框中的状态更改
+const handleStatusChangeInDialog = (status) => {
+  const statusText = getStatusText(status);
+  ElMessageBox.confirm(`确认要将该用户套餐状态修改为"${statusText}"吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
-    try {
-      // 发送状态更新请求
-      await updateUserPackageStatus(row.id, status);
-      ElMessage.success('状态修改成功');
-      getList(); // 刷新列表
-    } catch (error) {
-      console.error('修改套餐状态失败:', error);
-      ElMessage.error('修改套餐状态失败');
+    if (await changeStatus(packageDetail.value.id, status)) {
+      // 刷新详情
+      handleViewDetail({ id: packageDetail.value.id });
     }
   }).catch(() => {});
 };
 
-// 初始化
-onMounted(() => {
-  if (!isInitialized.value) {
-    getList();
-    isInitialized.value = true;
+// 查看详情
+const handleViewDetail = async (row) => {
+  detailDialogVisible.value = true;
+  detailLoading.value = true;
+  packageDetail.value = {};
+  
+  try {
+    const response = await getUserPackageDetail(row.id);
+    packageDetail.value = processListItem(response.data || {});
+  } catch (error) {
+    ElMessage.error('获取套餐详情失败');
+    console.error('获取套餐详情错误:', error);
+  } finally {
+    detailLoading.value = false;
   }
+};
+
+// 判断是否有使用记录
+const hasUsageRecords = computed(() => {
+  return packageDetail.value.records && packageDetail.value.records.length > 0;
 });
 
-// 当页面被激活时（从缓存中恢复）重新加载数据
-onActivated(() => {
-  // 避免重复请求数据
-  if (!isRequestLocked.value) {
-    getList();
-  }
+// 初始化
+onMounted(() => {
+  getList();
 });
 </script>
 
 <style scoped>
 .user-package-container {
-  padding: 20px;
+  padding: 0 20px 20px;
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
+}
+
+.page-header h2 {
+  font-weight: 500;
+  color: #303133;
 }
 
 .filter-container {
@@ -562,12 +492,6 @@ onActivated(() => {
   margin-bottom: 20px;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-
 .user-info {
   display: flex;
   align-items: center;
@@ -580,61 +504,49 @@ onActivated(() => {
 .user-phone {
   font-size: 12px;
   color: #909399;
-  margin-top: 3px;
-}
-
-.usage-title {
-  margin-top: 20px;
-  margin-bottom: 10px;
-}
-
-.no-records {
-  text-align: center;
-  color: #909399;
-  padding: 20px 0;
-}
-
-.remaining-time {
   margin-top: 5px;
 }
 
-.status-desc {
+.remaining-time, .status-desc {
   margin-top: 5px;
 }
 
 .order-info {
-  font-size: 12px;
+  font-size: 13px;
   color: #606266;
-  margin-top: 3px;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  text-align: right;
 }
 
 .detail-section {
-  margin-top: 20px;
   margin-bottom: 20px;
 }
 
 .section-title {
   font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 15px;
+  color: #303133;
+  margin: 15px 0;
   padding-left: 10px;
   border-left: 3px solid #409EFF;
+  font-weight: 500;
 }
 
 .usage-stats {
   display: flex;
-  gap: 15px;
-  margin-bottom: 15px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .price-value {
   color: #f56c6c;
-  font-weight: 600;
+  font-weight: bold;
 }
 
 .dialog-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
+  margin-top: 20px;
+  text-align: right;
 }
 </style> 

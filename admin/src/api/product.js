@@ -55,8 +55,11 @@ export function updateProductStatus(id, status) {
     method: 'get'
   }).then(response => {
     const product = response.data;
-    // 修改状态字段
+    // 同时设置两个状态字段，以适应不同的API接口风格
     product.is_active = isActive;
+    product.status = status;
+    
+    console.log('发送更新请求，数据:', product);
     
     // 发送更新请求
     return request({
@@ -71,10 +74,12 @@ export function updateProductStatus(id, status) {
 export function batchUpdateProductStatus(ids, status) {
   // 确保status是布尔值
   const isActive = status === 1;
+  console.log('批量更新商品状态:', ids, '状态:', isActive);
+  
   return request({
     url: '/admin/products/batch',
     method: 'put',
-    data: { ids, is_active: isActive }
+    data: { ids, is_active: isActive, status: status }
   });
 }
 

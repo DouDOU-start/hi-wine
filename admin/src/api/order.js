@@ -1,45 +1,26 @@
-import request from '../utils/request';
+import { get, post, put, download } from '../utils/request';
 
 // 获取订单列表
 export function getOrderList(params) {
-  return request({
-    url: '/admin/orders',
-    method: 'get',
-    params
-  });
+  return get('/admin/orders', params);
 }
 
 // 获取订单详情
 export function getOrderDetail(id) {
-  return request({
-    url: `/admin/orders/${id}`,
-    method: 'get'
-  });
+  return get(`/admin/orders/${id}`);
 }
 
 // 更新订单状态
-export function updateOrderStatus(id, status) {
-  return request({
-    url: `/admin/orders/${id}/status`,
-    method: 'put',
-    data: { status }
-  });
+export function updateOrderStatus(id, orderStatus) {
+  return put(`/admin/orders/${id}/status`, { order_status: orderStatus });
 }
 
 // 获取订单统计数据
 export function getOrderStats() {
-  return request({
-    url: '/admin/statistics/orders',
-    method: 'get'
-  });
+  return get('/admin/statistics/orders');
 }
 
 // 导出订单数据
 export function exportOrders(params) {
-  return request({
-    url: '/admin/orders/export',
-    method: 'get',
-    params,
-    responseType: 'blob'
-  });
+  return download('/admin/orders/export', params, 'orders.xlsx');
 } 

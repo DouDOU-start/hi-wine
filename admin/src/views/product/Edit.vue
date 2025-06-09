@@ -348,10 +348,20 @@ const rules = {
 const fetchCategoryList = async () => {
   try {
     const response = await getCategoryList();
-    categoryOptions.value = response.data.list || [];
+    console.log('分类列表响应:', response);
+    
+    if (response.data && response.data.list) {
+      categoryOptions.value = response.data.list.map(item => ({
+        id: item.id,
+        name: item.name
+      }));
+    } else {
+      categoryOptions.value = [];
+    }
   } catch (error) {
     console.error('获取分类列表失败:', error);
     ElMessage.error('获取分类列表失败');
+    categoryOptions.value = [];
   }
 };
 
@@ -366,19 +376,19 @@ const fetchProductDetail = async (id) => {
     if (response.data) {
       const product = response.data;
       console.log('原始商品数据:', product);
-      console.log('分类ID类型:', typeof product.category_id, '值:', product.category_id);
+      console.log('分类ID类型:', typeof product.categoryId, '值:', product.categoryId);
       
       // 映射后端字段到表单字段
       form.id = product.id;
       form.name = product.name || '';
       form.price = typeof product.price === 'string' ? parseFloat(product.price) : product.price || 0;
       form.stock = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock || 0;
-      form.image = product.image_url || product.image || '';
+      form.image = product.imageUrl || product.image || '';
       form.description = product.description || '';
-      // 状态字段可能是is_active(布尔值)或status(数字)
-      form.status = product.status === 1 || product.is_active === true ? 1 : 0;
+      // 状态字段可能是isActive(布尔值)或status(数字)
+      form.status = product.status === 1 || product.isActive === true ? 1 : 0;
       // 分类ID处理，保持为数字类型
-      form.categoryId = product.category_id || null;
+      form.categoryId = product.categoryId || null;
       
       console.log('表单数据设置后:', form);
       console.log('表单分类ID类型:', typeof form.categoryId, '值:', form.categoryId);
@@ -406,95 +416,96 @@ const fetchProductDetail = async (id) => {
   }
 };
 
-// 获取完整图片URL
+// 获取图片完整URL
 const getImageUrl = (url) => {
   if (!url) return '';
   
-  // 如果是相对路径，添加基础URL
-  if (url.startsWith('/')) {
-    // 使用当前域名作为基础URL，而不是硬编码
-    // 这样可以适应不同的部署环境
+  // 如果已经是完整URL（包含http或https），直接返回
+  if (url.startsWith('http://') || url.startsWith('https://')) {
     return url;
   }
   
-  // 如果已经是完整URL，直接返回
-  return url;
+  // 如果是相对路径，添加基础URL
+  if (url.startsWith('/')) {
+    return url;
+  }
+  
+  // 否则，构造完整URL
+  return `/api/uploads/${url}`;
 };
 
-// 上传前验证
-const beforeUpload = (file) => {
-  // 检查token是否正确设置
-  const token = getToken();
-  console.log('上传前检查token:', token);
-  console.log('上传请求头:', uploadHeaders.value);
+// 处理上传成功
+const handleUploadSuccess = (response, uploadFile) => {
+  console.log('上传成功，响应:', response);
   
-  const isJPG = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/gif';
-  const isLt5M = file.size / 1024 / 1024 < 5;
-
-  if (!isJPG) {
-    ElMessage.error('上传图片只能是 JPG/PNG/GIF 格式!');
-  }
-  if (!isLt5M) {
-    ElMessage.error('上传图片大小不能超过 5MB!');
-  }
-  return isJPG && isLt5M;
-};
-
-// 上传成功回调
-const handleUploadSuccess = (res) => {
-  console.log('上传响应:', res);
-  
-  // 检查响应格式
-  if (res.code === 200 && res.data && res.data.url) {
-    form.image = res.data.url;
+  if (response && response.code === 200) {
+    // 根据后端返回的数据结构获取图片URL
+    const imageUrl = response.data.url || response.data.imageUrl || response.data.path || '';
+    form.image = imageUrl;
     
-    // 测试图片是否可以加载
-    const img = new Image();
-    img.onload = () => {
-      ElMessage.success('图片上传成功');
-    };
-    img.onerror = () => {
-      console.error('图片加载失败:', res.data.url);
-      ElMessage.warning('图片上传成功，但可能无法正常显示，请检查网络或服务器配置');
-    };
-    img.src = getImageUrl(res.data.url);
-  } else if (res.data && res.data.url) {
-    // 兼容其他响应格式
-    form.image = res.data.url;
     ElMessage.success('图片上传成功');
   } else {
-    console.error('上传响应格式异常:', res);
-    ElMessage.error(res.message || '上传失败，响应格式异常');
+    ElMessage.error(response?.message || '图片上传失败');
   }
 };
 
-// 上传错误回调
+// 处理上传错误
 const handleUploadError = (error) => {
-  console.error('上传错误:', error);
-  ElMessage.error('上传失败，请检查网络或服务器配置');
+  console.error('上传失败:', error);
+  ElMessage.error('图片上传失败');
+};
+
+// 上传前校验
+const beforeUpload = (file) => {
+  // 检查文件类型
+  const isImage = /^image\/(jpeg|png|gif|jpg)$/.test(file.type);
+  if (!isImage) {
+    ElMessage.error('只能上传JPG/PNG/GIF格式的图片!');
+    return false;
+  }
+  
+  // 检查文件大小（5MB）
+  const isLt5M = file.size / 1024 / 1024 < 5;
+  if (!isLt5M) {
+    ElMessage.error('图片大小不能超过5MB!');
+    return false;
+  }
+  
+  return true;
 };
 
 // 提交表单
 const submitForm = () => {
+  // 数据校验
   formRef.value.validate(async (valid) => {
     if (!valid) {
       ElMessage.warning('请完善表单信息');
       return;
     }
     
+    if (!form.image) {
+      ElMessage.warning('请上传商品图片');
+      return;
+    }
+    
+    // 显示提交状态
     submitting.value = true;
+    
     try {
-      // 准备提交的数据，确保格式与后端API一致
+      // 准备提交数据
       const submitData = {
         name: form.name,
-        category_id: form.categoryId,
+        categoryId: form.categoryId,
         price: parseFloat(form.price),
         stock: parseInt(form.stock),
-        image_url: form.image,
+        imageUrl: form.image,
         description: form.description,
-        is_active: parseInt(form.status)
+        status: parseInt(form.status)
       };
       
+      console.log('提交数据:', submitData);
+      
+      // 根据是否是编辑模式决定调用添加或更新API
       if (isEdit.value) {
         await updateProduct(form.id, submitData);
         ElMessage.success('商品更新成功');

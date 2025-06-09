@@ -1,103 +1,61 @@
-import request from '../utils/request';
+import { get, post, put, del } from '../utils/request';
 
 // 获取套餐列表
 export function getPackageList(params) {
-  return request({
-    url: '/admin/packages',
-    method: 'get',
-    params
-  });
+  return get('/admin/packages', params);
 }
 
 // 获取套餐详情
 export function getPackageDetail(id) {
-  return request({
-    url: `/admin/packages/${id}/with-products`,
-    method: 'get'
-  });
+  return get(`/admin/packages/${id}/with-products`);
 }
 
 // 创建套餐
 export function createPackage(data) {
-  return request({
-    url: '/admin/packages',
-    method: 'post',
-    data
-  });
+  return post('/admin/packages', data);
 }
 
 // 更新套餐
 export function updatePackage(id, data) {
-  return request({
-    url: `/admin/packages/${id}`,
-    method: 'put',
-    data
-  });
+  return put(`/admin/packages/${id}`, data);
 }
 
 // 删除套餐
 export function deletePackage(id) {
-  return request({
-    url: `/admin/packages/${id}`,
-    method: 'delete'
-  });
+  return del(`/admin/packages/${id}`);
 }
 
 // 关联套餐商品
 export function associatePackageProducts(packageId, productIds) {
-  return request({
-    url: `/admin/packages/${packageId}/products`,
-    method: 'post',
-    data: { productIds }
-  });
+  return post(`/admin/packages/${packageId}/products`, { productIds });
 }
 
 // 移除套餐中的单个商品
 export function removeProductFromPackage(packageId, productId) {
-  return request({
-    url: `/admin/packages/${packageId}/products/${productId}`,
-    method: 'delete'
-  });
+  return del(`/admin/packages/${packageId}/products/${productId}`);
 }
 
 // 获取套餐关联的商品列表
 export function getPackageProducts(packageId) {
-  return request({
-    url: `/admin/packages/${packageId}/products`,
-    method: 'get'
-  });
+  return get(`/admin/packages/${packageId}/products`);
 }
 
 // 获取用户套餐列表
-export function getUserPackageList(params) {
-  return request({
-    url: '/admin/user-packages',
-    method: 'get',
-    params
-  });
+export function getUserPackages(params) {
+  return get('/admin/user-packages', params);
 }
 
 // 获取用户套餐详情
 export function getUserPackageDetail(id) {
-  return request({
-    url: `/admin/user-packages/${id}/full-detail`,
-    method: 'get'
-  });
+  return get(`/admin/user-packages/${id}/full-detail`);
 }
 
 // 更新用户套餐状态
-export function updateUserPackageStatus(id, status) {
-  return request({
-    url: `/admin/user-packages/${id}/status`,
-    method: 'put',
-    data: { status }
-  });
+export function updateUserPackageStatus(id, data) {
+  return put(`/admin/user-packages/${id}/status`, data);
 }
 
 // 获取套餐统计数据
 export function getPackageStats(id) {
-  return request({
-    url: `/admin/packages/${id}/stats`,
-    method: 'get'
-  });
+  return get(`/admin/packages/${id}/stats`);
 } 

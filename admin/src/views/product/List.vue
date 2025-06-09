@@ -50,25 +50,25 @@
                 v-model="searchForm.status" 
                 placeholder="请选择状态" 
                 clearable
+                filterable
                 popper-class="status-select-dropdown"
+                :popper-options="{ boundariesPadding: 0, gpuAcceleration: false }"
               >
                 <template #prefix>
                   <el-icon class="status-icon"><SetUp /></el-icon>
                 </template>
-                <el-option-group label="商品状态">
-                  <el-option label="上架" :value="1">
-                    <div class="status-option">
-                      <el-tag size="small" type="success" effect="dark" class="status-tag-select">上架</el-tag>
-                      <span class="status-desc">商品可见且可购买</span>
-                    </div>
-                  </el-option>
-                  <el-option label="下架" :value="0">
-                    <div class="status-option">
-                      <el-tag size="small" type="info" effect="dark" class="status-tag-select">下架</el-tag>
-                      <span class="status-desc">商品不可见且不可购买</span>
-                    </div>
-                  </el-option>
-                </el-option-group>
+                <el-option label="上架" :value="1">
+                  <div class="status-option">
+                    <el-tag size="small" type="success" effect="dark" class="status-tag-select">上架</el-tag>
+                    <span class="status-desc">商品可见且可购买</span>
+                  </div>
+                </el-option>
+                <el-option label="下架" :value="0">
+                  <div class="status-option">
+                    <el-tag size="small" type="info" effect="dark" class="status-tag-select">下架</el-tag>
+                    <span class="status-desc">商品不可见且不可购买</span>
+                  </div>
+                </el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -107,7 +107,9 @@
                     v-model="searchForm.stockStatus" 
                     placeholder="库存状态" 
                     clearable
+                    filterable
                     popper-class="stock-select-dropdown"
+                    :popper-options="{ boundariesPadding: 0, gpuAcceleration: false }"
                   >
                     <template #prefix>
                       <el-icon class="stock-icon"><Goods /></el-icon>
@@ -257,11 +259,11 @@
         <el-table-column prop="image" label="图片" width="100" v-if="tableConfig.showImage">
           <template #default="scope">
             <el-image 
-              v-if="scope.row.image_url || scope.row.image" 
-              :src="getImageUrl(scope.row.image_url || scope.row.image)" 
+              v-if="scope.row.imageUrl || scope.row.image" 
+              :src="getImageUrl(scope.row.imageUrl || scope.row.image)" 
               style="width: 60px; height: 60px; object-fit: cover; border-radius: 6px;"
               fit="cover"
-              :preview-src-list="[getImageUrl(scope.row.image_url || scope.row.image)]"
+              :preview-src-list="[getImageUrl(scope.row.imageUrl || scope.row.image)]"
               :initial-index="0"
               lazy
               @error="handleImageError(scope.row)"
@@ -363,14 +365,14 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+        <el-table-column prop="createdAt" label="创建时间" width="180" sortable>
           <template #default="scope">
-            {{ formatDateTime(scope.row.created_at) }}
+            {{ formatDateTime(scope.row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column prop="updated_at" label="更新时间" width="180" sortable>
+        <el-table-column prop="updatedAt" label="更新时间" width="180" sortable>
           <template #default="scope">
-            {{ formatDateTime(scope.row.updated_at) }}
+            {{ formatDateTime(scope.row.updatedAt) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
@@ -528,10 +530,10 @@ const applyQuickFilter = (filter) => {
       searchForm.stockStatus = 'out';
       break;
     case 'onSale':
-      searchForm.status = 1;
+      searchForm.status = 1; // 1表示上架，对应后端is_active=true
       break;
     case 'offSale':
-      searchForm.status = 0;
+      searchForm.status = 0; // 0表示下架，对应后端is_active=false
       break;
   }
   
@@ -599,7 +601,8 @@ const fetchProductList = async () => {
       limit: pageSize.value,
       name: searchForm.name,
       categoryId: searchForm.categoryId,
-      status: searchForm.status,
+      is_active: searchForm.status === 1 ? true : (searchForm.status === 0 ? false : undefined),
+      status: searchForm.status !== '' ? searchForm.status : undefined,
       minPrice: searchForm.minPrice,
       maxPrice: searchForm.maxPrice,
       stockStatus: searchForm.stockStatus
@@ -619,23 +622,29 @@ const fetchProductList = async () => {
     if (response.data && response.data.list) {
       productList.value = response.data.list.map(item => {
         // 查找对应的分类名称
-        const category = categoryOptions.value.find(cat => cat.id === item.category_id);
+        const category = categoryOptions.value.find(cat => cat.id === item.categoryId);
         
         // 调试日志
         console.log('处理商品数据:', item);
+        console.log('状态值:', {
+          status: item.status,
+          is_active: item.is_active,
+          isActive: item.isActive,
+          处理后状态: item.status !== undefined ? item.status : (item.is_active === true || item.isActive === true ? 1 : 0)
+        });
         
         return {
           ...item,
           categoryName: category ? category.name : '未分类',
-          // 处理状态字段，后端返回的可能是status或is_active
-          status: item.status !== undefined ? item.status : (item.is_active === true ? 1 : 0),
+          // 处理状态字段，优先使用status，如果没有则检查is_active或isActive
+          status: item.status !== undefined ? item.status : (item.is_active === true || item.isActive === true ? 1 : 0),
           // 确保价格是数字类型
           price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
           // 确保图片字段存在
-          image: item.image_url || item.image,
+          image: item.imageUrl || item.image,
           // 确保创建时间和更新时间字段存在
-          created_at: item.created_at || '暂无数据',
-          updated_at: item.updated_at || '暂无数据'
+          createdAt: item.createdAt || '暂无数据',
+          updatedAt: item.updatedAt || '暂无数据'
         };
       });
       total.value = response.data.total || 0;
@@ -831,7 +840,7 @@ const handleBatchDelete = () => {
 const handleStatusChange = async (row) => {
   const originalStatus = row.status;
   try {
-    console.log('更新商品状态开始:', row.id, '新状态:', row.status);
+    console.log('更新商品状态开始:', row.id, '新状态:', row.status, '对应布尔值:', row.status === 1);
     // 静默处理，不显示成功消息
     const response = await updateProductStatus(row.id, row.status);
     console.log('状态更新成功，响应:', response);
@@ -849,13 +858,13 @@ const handleStatusChange = async (row) => {
       row.userTriggered = false;
     }
     // 恢复原状态
-    row.status = originalStatus === 1 ? 0 : 1;
+    row.status = originalStatus;
   }
 };
 
 // 图片错误处理
 const handleImageError = (row) => {
-  console.error(`图片加载失败: ${row.name}`, row.image_url || row.image);
+  console.error(`图片加载失败: ${row.name}`, row.imageUrl || row.image);
   // 避免多次提示，不显示消息提示
 };
 

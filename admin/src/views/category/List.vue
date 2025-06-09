@@ -17,19 +17,19 @@
       >
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="name" label="分类名称" />
-        <el-table-column prop="sort_order" label="排序" width="100" />
+        <el-table-column prop="sortOrder" label="排序" width="100" />
         <el-table-column label="状态" width="100">
           <template #default="scope">
             <el-switch
-              v-model="scope.row.is_active"
+              v-model="scope.row.isActive"
               :active-value="true"
               :inactive-value="false"
               @change="handleStatusChange(scope.row)"
             />
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column prop="updated_at" label="更新时间" width="180" />
+        <el-table-column prop="createdAt" label="创建时间" width="180" />
+        <el-table-column prop="updatedAt" label="更新时间" width="180" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="scope">
             <el-button 
@@ -78,12 +78,12 @@
         <el-form-item label="分类名称" prop="name">
           <el-input v-model="form.name" placeholder="请输入分类名称" />
         </el-form-item>
-        <el-form-item label="排序" prop="sort_order">
-          <el-input-number v-model="form.sort_order" :min="0" :max="9999" />
+        <el-form-item label="排序" prop="sortOrder">
+          <el-input-number v-model="form.sortOrder" :min="0" :max="9999" />
         </el-form-item>
         <el-form-item label="状态">
           <el-switch
-            v-model="form.is_active"
+            v-model="form.isActive"
             :active-value="true"
             :inactive-value="false"
           />
@@ -131,8 +131,8 @@ const isEdit = ref(false);
 const form = reactive({
   id: '',
   name: '',
-  sort_order: 0,
-  is_active: true
+  sortOrder: 0,
+  isActive: true
 });
 
 // 表单验证规则
@@ -141,7 +141,7 @@ const rules = {
     { required: true, message: '请输入分类名称', trigger: 'blur' },
     { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
   ],
-  sort_order: [
+  sortOrder: [
     { required: true, message: '请输入排序值', trigger: 'blur' }
   ]
 };
@@ -196,8 +196,8 @@ const handleEdit = (row) => {
   Object.assign(form, {
     id: row.id,
     name: row.name,
-    sort_order: row.sort_order,
-    is_active: row.is_active
+    sortOrder: row.sortOrder,
+    isActive: row.isActive
   });
   dialogVisible.value = true;
 };
@@ -210,9 +210,13 @@ const handleDelete = (row) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await deleteCategory(row.id);
-      ElMessage.success('删除成功');
-      fetchCategoryList();
+      const response = await deleteCategory(row.id);
+      if (response && response.code === 200) {
+        ElMessage.success('删除成功');
+        fetchCategoryList();
+      } else {
+        ElMessage.error(response?.message || '删除分类失败');
+      }
     } catch (error) {
       console.error('删除分类失败:', error);
       ElMessage.error('删除分类失败');
@@ -223,13 +227,19 @@ const handleDelete = (row) => {
 // 更新分类状态
 const handleStatusChange = async (row) => {
   try {
-    await updateCategoryStatus(row.id, row.is_active);
-    ElMessage.success(`已${row.is_active ? '启用' : '禁用'}分类"${row.name}"`);
+    const response = await updateCategoryStatus(row.id, row.isActive);
+    if (response && response.code === 200) {
+      ElMessage.success(`已${row.isActive ? '启用' : '禁用'}分类"${row.name}"`);
+    } else {
+      // 状态更新失败，恢复原状态
+      row.isActive = !row.isActive;
+      ElMessage.error(response?.message || '更新分类状态失败');
+    }
   } catch (error) {
     console.error('更新分类状态失败:', error);
     ElMessage.error('更新分类状态失败');
     // 恢复原状态
-    row.is_active = !row.is_active;
+    row.isActive = !row.isActive;
   }
 };
 
@@ -240,8 +250,8 @@ const resetForm = () => {
   }
   form.id = '';
   form.name = '';
-  form.sort_order = 0;
-  form.is_active = true;
+  form.sortOrder = 0;
+  form.isActive = true;
 };
 
 // 提交表单
@@ -252,19 +262,30 @@ const submitForm = () => {
     try {
       const formData = {
         name: form.name,
-        sort_order: form.sort_order,
-        is_active: form.is_active
+        sortOrder: form.sortOrder,
+        isActive: form.isActive
       };
       
+      let response;
       if (isEdit.value) {
-        await updateCategory(form.id, formData);
-        ElMessage.success('更新成功');
+        response = await updateCategory(form.id, formData);
+        if (response && response.code === 200) {
+          ElMessage.success('更新成功');
+          dialogVisible.value = false;
+          fetchCategoryList();
+        } else {
+          ElMessage.error(response?.message || '更新分类失败');
+        }
       } else {
-        await addCategory(formData);
-        ElMessage.success('添加成功');
+        response = await addCategory(formData);
+        if (response && response.code === 200) {
+          ElMessage.success('添加成功');
+          dialogVisible.value = false;
+          fetchCategoryList();
+        } else {
+          ElMessage.error(response?.message || '添加分类失败');
+        }
       }
-      dialogVisible.value = false;
-      fetchCategoryList();
     } catch (error) {
       console.error('操作失败:', error);
       ElMessage.error('操作失败');

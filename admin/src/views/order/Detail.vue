@@ -10,35 +10,35 @@
         <div class="card-header">
           <span>基本信息</span>
           <div class="order-status">
-            <el-tag :type="getOrderStatusType(orderDetail.status)" size="large">
-              {{ getOrderStatusText(orderDetail.status) }}
+            <el-tag :type="getOrderStatusType(orderDetail.orderStatus)" size="large">
+              {{ getOrderStatusText(orderDetail.orderStatus) }}
             </el-tag>
           </div>
         </div>
       </template>
       
       <el-descriptions :column="3" border>
-        <el-descriptions-item label="订单号">{{ orderDetail.orderSn || orderDetail.id }}</el-descriptions-item>
+        <el-descriptions-item label="订单号">{{ orderDetail.orderSn }}</el-descriptions-item>
         <el-descriptions-item label="用户名">{{ orderDetail.username }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ orderDetail.phone }}</el-descriptions-item>
-        <el-descriptions-item label="订单金额">￥{{ orderDetail.totalAmount?.toFixed(2) }}</el-descriptions-item>
-        <el-descriptions-item label="支付方式">{{ getPayMethodText(orderDetail.payMethod) }}</el-descriptions-item>
-        <el-descriptions-item label="商品数量">{{ orderDetail.productCount }}</el-descriptions-item>
-        <el-descriptions-item label="下单时间">{{ orderDetail.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="支付时间">{{ orderDetail.payTime || '未支付' }}</el-descriptions-item>
-        <el-descriptions-item label="完成时间">{{ orderDetail.finishTime || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="订单金额">￥{{ formatPrice(orderDetail.totalAmount) }}</el-descriptions-item>
+        <el-descriptions-item label="支付方式">{{ getPayMethodText(orderDetail.paymentMethod) }}</el-descriptions-item>
+        <el-descriptions-item label="商品数量">{{ orderDetail.itemCount }}</el-descriptions-item>
+        <el-descriptions-item label="下单时间">{{ orderDetail.createdAt ? formatDate(orderDetail.createdAt) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="支付时间">{{ orderDetail.paidAt ? formatDate(orderDetail.paidAt) : '未支付' }}</el-descriptions-item>
+        <el-descriptions-item label="完成时间">{{ orderDetail.completedAt ? formatDate(orderDetail.completedAt) : '-' }}</el-descriptions-item>
       </el-descriptions>
       
-      <div class="action-bar" v-if="orderDetail.status !== 'completed' && orderDetail.status !== 'cancelled'">
+      <div class="action-bar" v-if="orderDetail.orderStatus !== 'completed' && orderDetail.orderStatus !== 'cancelled'">
         <el-button 
-          v-if="orderDetail.status === 'processing'"
+          v-if="orderDetail.orderStatus === 'processing'"
           type="primary" 
           @click="handleCompleteOrder"
         >
           完成订单
         </el-button>
         <el-button 
-          v-if="orderDetail.status === 'new'"
+          v-if="orderDetail.orderStatus === 'new'"
           type="danger" 
           @click="handleCancelOrder"
         >
@@ -95,7 +95,7 @@
       </div>
     </el-card>
     
-    <el-card shadow="never" class="info-card" v-if="orderDetail.remark" v-loading="loading">
+    <el-card shadow="never" class="info-card" v-if="orderDetail.message" v-loading="loading">
       <template #header>
         <div class="card-header">
           <span>订单备注</span>
@@ -103,9 +103,11 @@
       </template>
       
       <div class="remark-content">
-        {{ orderDetail.remark }}
+        {{ orderDetail.message }}
       </div>
     </el-card>
+
+    <pre v-if="false">{{ orderDetail }}</pre>
   </div>
 </template>
 
@@ -114,6 +116,7 @@ import { ref, reactive, onMounted, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getOrderDetail, updateOrderStatus } from '../../api/order';
+import { formatDate } from '../../utils/format';
 
 const router = useRouter();
 const route = useRoute();
@@ -131,15 +134,55 @@ const orderDetail = reactive({
   username: '',
   phone: '',
   totalAmount: 0,
-  productCount: 0,
-  status: '',
-  payMethod: 0,
-  createTime: '',
-  payTime: '',
-  finishTime: '',
-  remark: '',
+  itemCount: 0,
+  orderStatus: '',
+  paymentMethod: '',
+  paymentStatus: '',
+  createdAt: '',
+  paidAt: '',
+  completedAt: '',
+  message: '',
   items: []
 });
+
+// 格式化价格
+const formatPrice = (price) => {
+  if (price === undefined || price === null) return '0.00';
+  return Number(price).toFixed(2);
+};
+
+// 获取订单状态文本
+const getOrderStatusText = (status) => {
+  switch (status) {
+    case 'new': return '待支付';
+    case 'processing': return '已支付';
+    case 'completed': return '已完成';
+    case 'cancelled': return '已取消';
+    default: return '未知状态';
+  }
+};
+
+// 获取订单状态类型
+const getOrderStatusType = (status) => {
+  switch (status) {
+    case 'new': return 'warning';
+    case 'processing': return 'success';
+    case 'completed': return 'primary';
+    case 'cancelled': return 'info';
+    default: return 'info';
+  }
+};
+
+// 获取支付方式文本
+const getPayMethodText = (method) => {
+  switch (method) {
+    case 'wechat': return '微信支付';
+    case 'alipay': return '支付宝';
+    case 'balance': return '余额支付';
+    case 'paid': return '已支付'; // 兼容payment_status作为支付方式
+    default: return '-';
+  }
+};
 
 // 获取订单详情
 const fetchOrderDetail = async () => {
@@ -167,76 +210,66 @@ const fetchOrderDetail = async () => {
     
     if (response && response.data) {
       // 处理订单基本信息
+      // 由于请求拦截器会将下划线字段转为驼峰，我们需要处理可能的两种情况
       const orderData = response.data;
       console.log('订单数据:', orderData);
       
       // 映射后端返回的字段到前端展示字段
       orderDetail.id = orderData.id || '';
-      orderDetail.orderSn = orderData.order_sn || '';
-      orderDetail.username = orderData.user_nickname || orderData.user_name || orderData.username || '';
-      orderDetail.phone = orderData.user_phone || orderData.phone || '';
-      orderDetail.totalAmount = orderData.total_amount !== undefined 
-        ? (typeof orderData.total_amount === 'string' ? parseFloat(orderData.total_amount) : orderData.total_amount) 
-        : orderData.totalAmount || 0;
-      orderDetail.productCount = orderData.item_count || orderData.productCount || 0;
-      orderDetail.status = orderData.order_status || orderData.status || '';
-      orderDetail.payMethod = orderData.payment_method || orderData.payMethod || 0;
-      orderDetail.createTime = orderData.created_at || orderData.createTime || '';
-      orderDetail.payTime = orderData.paid_at || orderData.payTime || '';
-      orderDetail.finishTime = orderData.completed_at || orderData.finishTime || '';
-      orderDetail.remark = orderData.remark || '';
+      orderDetail.orderSn = orderData.orderSn || orderData.order_sn || '';
+      orderDetail.username = orderData.userNickname || orderData.userName || orderData.user_nickname || orderData.user_name || '';
+      orderDetail.phone = orderData.userPhone || orderData.user_phone || '';
       
-      // 处理订单商品项 - 根据截图调整
+      // 处理金额字段，确保是数字类型
+      const amount = orderData.totalAmount || orderData.total_amount || 0;
+      orderDetail.totalAmount = parseFloat(amount);
+      
+      // 处理商品数量
+      orderDetail.itemCount = parseInt(orderData.itemCount || orderData.item_count || 0);
+      
+      // 处理订单状态
+      orderDetail.orderStatus = orderData.orderStatus || orderData.order_status || '';
+      
+      // 处理支付方式
+      orderDetail.paymentMethod = orderData.paymentMethod || orderData.payment_method || '';
+      
+      // 处理支付状态
+      orderDetail.paymentStatus = orderData.paymentStatus || orderData.payment_status || '';
+      
+      // 处理时间字段
+      orderDetail.createdAt = orderData.createdAt || orderData.created_at || '';
+      orderDetail.paidAt = orderData.paidAt || orderData.paid_at || '';
+      orderDetail.completedAt = orderData.completedAt || orderData.completed_at || '';
+      
+      // 处理备注信息
+      orderDetail.message = orderData.message || '';
+      
+      // 处理订单商品项
       if (orderData.items && Array.isArray(orderData.items)) {
         orderDetail.items = orderData.items.map(item => {
-          // 根据截图中的数据结构处理
+          const productId = item.productId || item.product_id || '';
+          const productName = item.name || '';
+          const productImage = item.imageUrl || item.image_url || '';
+          const price = parseFloat(item.itemPrice || item.item_price || 0);
+          const quantity = parseInt(item.quantity || 0);
+          const isPackageItem = item.isPackageItem || item.is_package_item || false;
+          
           return {
-            productId: item.product_id || item.id || '',
-            productName: item.name || '',
-            productImage: item.image_url || item.image || '',
-            price: typeof item.item_price === 'string' ? parseFloat(item.item_price) : (item.item_price || 0),
-            quantity: typeof item.quantity === 'string' ? parseInt(item.quantity) : (item.quantity || 0),
-            subtotal: (item.item_price * item.quantity) || 0,
-            isPackageItem: item.is_package_item || false
+            productId,
+            productName,
+            productImage,
+            price,
+            quantity,
+            subtotal: price * quantity,
+            isPackageItem
           };
         });
-        
-        // 调试输出商品图片信息
-        console.log('处理后的商品项:', orderDetail.items);
-      } else if (orderData.items) {
-        // 如果items不是数组，可能是对象结构
-        console.log('商品项不是数组:', orderData.items);
-        try {
-          // 尝试处理可能的其他结构
-          const items = [];
-          if (orderData.items[0]) {
-            // 如果是对象的数字索引
-            for (const key in orderData.items) {
-              if (!isNaN(parseInt(key))) {
-                const item = orderData.items[key];
-                items.push({
-                  productId: item.product_id || item.id || '',
-                  productName: item.name || '',
-                  productImage: item.image_url || item.image || '',
-                  price: typeof item.item_price === 'string' ? parseFloat(item.item_price) : (item.item_price || 0),
-                  quantity: typeof item.quantity === 'string' ? parseInt(item.quantity) : (item.quantity || 0),
-                  subtotal: (item.item_price * item.quantity) || 0,
-                  isPackageItem: item.is_package_item || false
-                });
-              }
-            }
-            orderDetail.items = items;
-            
-            // 调试输出商品图片信息
-            console.log('处理后的商品项(对象结构):', orderDetail.items);
-          }
-        } catch (e) {
-          console.error('处理商品项出错:', e);
-          orderDetail.items = [];
-        }
       } else {
         orderDetail.items = [];
       }
+
+      // 打印处理后的数据，方便调试
+      console.log('处理后的订单数据:', orderDetail);
     } else {
       throw new Error('订单数据格式异常');
     }
@@ -250,61 +283,18 @@ const fetchOrderDetail = async () => {
   }
 };
 
-// 获取订单状态文本
-const getOrderStatusText = (status) => {
-  switch (status) {
-    case 'new': return '待支付';
-    case 'processing': return '已支付';
-    case 'completed': return '已完成';
-    case 'cancelled': return '已取消';
-    // 兼容数字状态码
-    case 0: return '待支付';
-    case 1: return '已支付';
-    case 2: return '已完成';
-    case 3: return '已取消';
-    default: return '未知状态';
-  }
-};
-
-// 获取订单状态类型
-const getOrderStatusType = (status) => {
-  switch (status) {
-    case 'new': return 'warning';
-    case 'processing': return 'success';
-    case 'completed': return 'primary';
-    case 'cancelled': return 'info';
-    // 兼容数字状态码
-    case 0: return 'warning';
-    case 1: return 'success';
-    case 2: return 'primary';
-    case 3: return 'info';
-    default: return 'info';
-  }
-};
-
-// 获取支付方式文本
-const getPayMethodText = (method) => {
-  switch (method) {
-    case 1: return '微信支付';
-    case 2: return '支付宝';
-    case 3: return '余额支付';
-    default: return '-';
-  }
-};
-
 // 完成订单
 const handleCompleteOrder = () => {
-  ElMessageBox.confirm(`确定要将订单 ${orderDetail.orderSn || orderDetail.id} 标记为已完成吗？`, '提示', {
+  ElMessageBox.confirm(`确定要将订单 ${orderDetail.orderSn} 标记为已完成吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
     try {
-      // 使用数字ID
       await updateOrderStatus(orderDetail.id, 'completed');
       ElMessage.success('订单已完成');
-      orderDetail.status = 'completed';
-      orderDetail.finishTime = new Date().toLocaleString();
+      orderDetail.orderStatus = 'completed';
+      orderDetail.completedAt = new Date().toISOString();
     } catch (error) {
       console.error('操作失败:', error);
       ElMessage.error('操作失败');
@@ -314,16 +304,15 @@ const handleCompleteOrder = () => {
 
 // 取消订单
 const handleCancelOrder = () => {
-  ElMessageBox.confirm(`确定要取消订单 ${orderDetail.orderSn || orderDetail.order_sn} 吗？`, '提示', {
+  ElMessageBox.confirm(`确定要取消订单 ${orderDetail.orderSn} 吗？`, '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
     try {
-      // 使用数字ID
-      await updateOrderStatus(orderDetail.id, 'cancelled_cancelled');
+      await updateOrderStatus(orderDetail.id, 'cancelled');
       ElMessage.success('订单已取消');
-      orderDetail.status = 'cancelled';
+      orderDetail.orderStatus = 'cancelled';
     } catch (error) {
       console.error('操作失败:', error);
       ElMessage.error('操作失败');
@@ -345,7 +334,7 @@ watch(
       fetchOrderDetail();
     }
   },
-  { immediate: false } // 设置为false，避免与onMounted重复触发
+  { immediate: false }
 );
 
 // 页面加载时获取数据
@@ -358,12 +347,6 @@ onMounted(() => {
     goBack();
   }
 });
-
-// 格式化价格
-const formatPrice = (price) => {
-  if (price === undefined || price === null) return '0.00';
-  return Number(price).toFixed(2);
-};
 </script>
 
 <style scoped>

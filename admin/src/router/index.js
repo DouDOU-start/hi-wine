@@ -147,25 +147,13 @@ const routes = [
         name: 'TableAdd',
         component: () => import('../views/table/Edit.vue'),
         meta: { title: '添加桌号', requiresAuth: true }
-      }
-    ]
-  },
-  {
-    path: '/statistics',
-    component: Layout,
-    meta: { title: '数据统计', icon: 'DataAnalysis', requiresAuth: true },
-    children: [
-      {
-        path: 'sales',
-        name: 'SalesStats',
-        component: () => import('../views/statistics/Sales.vue'),
-        meta: { title: '销售统计', requiresAuth: true }
       },
       {
-        path: 'packages',
-        name: 'PackageStats',
-        component: () => import('../views/statistics/Packages.vue'),
-        meta: { title: '套餐统计', requiresAuth: true }
+        path: 'edit/:id',
+        name: 'TableEdit',
+        component: () => import('../views/table/Edit.vue'),
+        meta: { title: '编辑桌号', requiresAuth: true },
+        props: true
       }
     ]
   },

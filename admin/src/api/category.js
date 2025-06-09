@@ -48,6 +48,6 @@ export function updateCategoryStatus(id, status) {
   return request({
     url: `/admin/categories/${id}`,
     method: 'put',
-    data: { is_active: status }
+    data: { isActive: status }
   });
 } 

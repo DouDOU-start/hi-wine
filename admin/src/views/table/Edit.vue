@@ -35,7 +35,11 @@
     
     <!-- 二维码预览 -->
     <el-card v-if="isEdit && tableDetail.qrcodeUrl" class="qrcode-container">
-      <div class="qrcode-title">桌号二维码</div>
+      <template #header>
+        <div class="card-header">
+          <span class="header-title">桌号二维码</span>
+        </div>
+      </template>
       <div class="qrcode-preview">
         <el-image
           :src="tableDetail.qrcodeUrl"
@@ -96,15 +100,15 @@ const getDetail = async () => {
   if (!isEdit.value) return;
   
   try {
-    const res = await getTableDetail(tableId.value);
-    tableDetail.value = res.data;
+    const response = await getTableDetail(tableId.value);
+    tableDetail.value = response.data || {};
     
     // 填充表单
-    tableForm.tableNumber = tableDetail.value.tableNumber;
-    tableForm.isActive = tableDetail.value.isActive;
+    tableForm.tableNumber = tableDetail.value.tableNumber || '';
+    tableForm.isActive = tableDetail.value.isActive !== false;
   } catch (error) {
-    console.error('获取桌号详情失败:', error);
     ElMessage.error('获取桌号详情失败');
+    console.error(error);
   }
 };
 
@@ -133,8 +137,8 @@ const submitForm = () => {
       
       router.push('/table/list');
     } catch (error) {
-      console.error(isEdit.value ? '更新桌号失败:' : '创建桌号失败:', error);
       ElMessage.error(isEdit.value ? '更新桌号失败' : '创建桌号失败');
+      console.error(error);
     } finally {
       submitting.value = false;
     }
@@ -161,8 +165,8 @@ const handleRegenerateQrcode = async () => {
       ElMessage.success('二维码重新生成成功');
       getDetail(); // 刷新详情
     } catch (error) {
-      console.error('重新生成二维码失败:', error);
       ElMessage.error('重新生成二维码失败');
+      console.error(error);
     }
   }).catch(() => {});
 };
@@ -170,21 +174,11 @@ const handleRegenerateQrcode = async () => {
 // 下载二维码
 const handleDownloadQrcode = async () => {
   try {
-    const response = await downloadQrcode(tableId.value);
-    
-    // 创建下载链接
-    const url = window.URL.createObjectURL(new Blob([response]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `qrcode-${tableForm.tableNumber}.png`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
+    await downloadQrcode(tableId.value);
     ElMessage.success('二维码下载成功');
   } catch (error) {
-    console.error('下载二维码失败:', error);
     ElMessage.error('下载二维码失败');
+    console.error(error);
   }
 };
 
@@ -196,7 +190,7 @@ onMounted(() => {
 
 <style scoped>
 .table-edit-container {
-  padding: 20px;
+  padding: 0 20px 20px;
 }
 
 .page-header {
@@ -204,6 +198,12 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.page-header h2 {
+  font-weight: 500;
+  color: #303133;
+  margin: 0;
 }
 
 .form-container {
@@ -214,21 +214,22 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
-.qrcode-title {
+.header-title {
   font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 20px;
+  font-weight: 500;
+  color: #303133;
 }
 
 .qrcode-preview {
   display: flex;
   justify-content: center;
-  margin-bottom: 20px;
+  padding: 20px 0;
 }
 
 .qrcode-actions {
   display: flex;
   justify-content: center;
-  gap: 20px;
+  gap: 10px;
+  margin-top: 10px;
 }
 </style> 

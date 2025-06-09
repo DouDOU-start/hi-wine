@@ -17,10 +17,10 @@
         :collapse-transition="false"
         router
       >
-        <!-- <el-menu-item index="/dashboard">
+        <el-menu-item index="/dashboard">
           <el-icon><component :is="'Odometer'" /></el-icon>
           <template #title>仪表盘</template>
-        </el-menu-item> -->
+        </el-menu-item>
         
         <el-sub-menu index="/product">
           <template #title>
@@ -58,15 +58,7 @@
           </template>
           <el-menu-item index="/table/list">桌号列表</el-menu-item>
           <el-menu-item index="/table/add">添加桌号</el-menu-item>
-        </el-sub-menu>
-        
-        <el-sub-menu index="/statistics">
-          <template #title>
-            <el-icon><component :is="'DataAnalysis'" /></el-icon>
-            <span>数据统计</span>
-          </template>
-          <el-menu-item index="/statistics/sales">销售统计</el-menu-item>
-          <el-menu-item index="/statistics/packages">套餐统计</el-menu-item>
+          <el-menu-item index="/table/edit">编辑桌号</el-menu-item>
         </el-sub-menu>
         
         <el-menu-item index="/user/list">
@@ -111,9 +103,7 @@
       <div class="app-main">
         <router-view v-slot="{ Component }">
           <transition name="fade-transform" mode="out-in">
-            <keep-alive>
-              <component :is="Component" />
-            </keep-alive>
+            <component :is="Component" />
           </transition>
         </router-view>
       </div>
@@ -211,9 +201,15 @@ onMounted(() => {
 .sidebar-container {
   width: 210px;
   height: 100%;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
   background-color: #304156;
-  transition: width 0.3s;
-  overflow: hidden;
+  transition: width 0.28s;
+  z-index: 1001;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .sidebar-container.is-collapsed {
@@ -222,32 +218,41 @@ onMounted(() => {
 
 .logo-container {
   height: 60px;
+  padding: 10px;
+  text-align: center;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
-  background-color: #2b3649;
 }
 
 .logo-image {
   height: 40px;
+  max-width: 100%;
 }
 
 .logo-small {
   height: 30px;
+  max-width: 100%;
 }
 
 .sidebar-menu {
   border-right: none;
-  height: calc(100% - 60px);
 }
 
 .main-container {
   flex: 1;
+  margin-left: 210px;
+  position: relative;
   display: flex;
   flex-direction: column;
-  min-width: 0;
+  transition: margin-left 0.28s;
+  min-height: 100%;
   background-color: #f0f2f5;
+}
+
+.is-collapsed + .main-container {
+  margin-left: 64px;
 }
 
 .navbar {
@@ -255,12 +260,13 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 20px;
+  padding: 0 15px;
   background-color: #fff;
   box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  position: relative;
 }
 
-.left-part {
+.left-part, .right-part {
   display: flex;
   align-items: center;
 }
@@ -269,12 +275,7 @@ onMounted(() => {
   font-size: 20px;
   cursor: pointer;
   margin-right: 15px;
-  color: #5a5e66;
-}
-
-.right-part {
-  display: flex;
-  align-items: center;
+  color: #606266;
 }
 
 .avatar-container {
@@ -284,8 +285,8 @@ onMounted(() => {
 }
 
 .avatar-image {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   margin-right: 8px;
 }
@@ -295,9 +296,19 @@ onMounted(() => {
   color: #606266;
 }
 
+.admin-info {
+  padding: 6px 0;
+}
+
+.admin-role {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
+}
+
 .app-main {
+  padding: 15px;
   flex: 1;
-  padding: 20px;
   overflow-y: auto;
 }
 
@@ -307,9 +318,13 @@ onMounted(() => {
   transition: all 0.3s;
 }
 
-.fade-transform-enter-from,
-.fade-transform-leave-to {
+.fade-transform-enter-from {
   opacity: 0;
   transform: translateX(20px);
+}
+
+.fade-transform-leave-to {
+  opacity: 0;
+  transform: translateX(-20px);
 }
 </style> 

@@ -39,16 +39,24 @@
         style="width: 100%"
       >
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="avatar_url" label="头像" width="80">
+        <el-table-column prop="avatarUrl" label="头像" width="80">
           <template #default="scope">
-            <el-avatar :src="scope.row.avatar_url || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+            <el-avatar :src="scope.row.avatarUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
           </template>
         </el-table-column>
         <el-table-column prop="nickname" label="昵称" />
         <el-table-column prop="openid" label="OpenID" />
         <el-table-column prop="phone" label="手机号" />
-        <el-table-column prop="created_at" label="注册时间" width="180" />
-        <el-table-column prop="updated_at" label="最后更新" width="180" />
+        <el-table-column label="注册时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.createdAt) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="最后更新" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.updatedAt) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
             <el-button 
@@ -86,12 +94,12 @@
         <el-descriptions-item label="OpenID">{{ currentUser.openid }}</el-descriptions-item>
         <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ currentUser.phone }}</el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ currentUser.created_at }}</el-descriptions-item>
-        <el-descriptions-item label="最后更新">{{ currentUser.updated_at }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ formatDate(currentUser.createdAt) }}</el-descriptions-item>
+        <el-descriptions-item label="最后更新">{{ formatDate(currentUser.updatedAt) }}</el-descriptions-item>
         <el-descriptions-item label="头像" :span="2">
           <el-avatar 
             :size="100" 
-            :src="currentUser.avatar_url || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+            :src="currentUser.avatarUrl || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
           />
         </el-descriptions-item>
       </el-descriptions>
@@ -109,6 +117,7 @@
 import { ref, reactive, onMounted, onActivated } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUserList } from '../../api/user';
+import { formatDate } from '../../utils/format';
 
 // 防止重复请求的锁
 const isRequestLocked = ref(false);
@@ -139,14 +148,12 @@ const searchForm = reactive({
 const detailDialogVisible = ref(false);
 const currentUser = reactive({
   id: '',
-  username: '',
   nickname: '',
   phone: '',
-  gender: '',
-  status: 1,
-  created_at: '',
-  updated_at: '',
-  avatar_url: ''
+  openid: '',
+  createdAt: '',
+  updatedAt: '',
+  avatarUrl: ''
 });
 
 // 获取用户列表
@@ -159,8 +166,8 @@ const fetchUserList = async () => {
       page: currentPage.value,
       limit: pageSize.value,
       keyword: searchForm.keyword || '',
-      start_date: searchForm.startDate || '',
-      end_date: searchForm.endDate || ''
+      startDate: searchForm.startDate || '',
+      endDate: searchForm.endDate || ''
     };
     
     const response = await getUserList(params);
