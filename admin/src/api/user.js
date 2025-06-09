@@ -64,7 +64,7 @@ export function deleteAdmin(id) {
 // 获取普通用户列表
 export function getUserList(params) {
   return request({
-    url: '/admin/customers',
+    url: '/admin/users',
     method: 'get',
     params
   });
@@ -73,7 +73,7 @@ export function getUserList(params) {
 // 获取用户详情
 export function getUserDetail(id) {
   return request({
-    url: `/admin/customers/${id}`,
+    url: `/admin/users/${id}`,
     method: 'get'
   });
 }
@@ -81,7 +81,7 @@ export function getUserDetail(id) {
 // 更新用户状态
 export function updateUserStatus(id, status) {
   return request({
-    url: `/admin/users/${id}/status`,
+    url: `/api/v1/admin/users/${id}/status`,
     method: 'put',
     data: { status }
   });

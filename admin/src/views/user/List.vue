@@ -4,17 +4,19 @@
     
     <el-card shadow="never" class="search-card">
       <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-form-item label="用户名">
-          <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable />
+        <el-form-item label="关键词">
+          <el-input v-model="searchForm.keyword" placeholder="用户名/手机号" clearable />
         </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-            <el-option label="正常" :value="1" />
-            <el-option label="禁用" :value="0" />
-          </el-select>
+        <el-form-item label="注册时间">
+          <el-date-picker
+            v-model="searchForm.dateRange"
+            type="daterange"
+            range-separator="至"
+            start-placeholder="开始日期"
+            end-placeholder="结束日期"
+            value-format="YYYY-MM-DD"
+            @change="handleDateRangeChange"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -37,31 +39,16 @@
         style="width: 100%"
       >
         <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="avatar" label="头像" width="80">
+        <el-table-column prop="avatar_url" label="头像" width="80">
           <template #default="scope">
-            <el-avatar :src="scope.row.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
+            <el-avatar :src="scope.row.avatar_url || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" />
           </template>
         </el-table-column>
-        <el-table-column prop="username" label="用户名" />
         <el-table-column prop="nickname" label="昵称" />
+        <el-table-column prop="openid" label="OpenID" />
         <el-table-column prop="phone" label="手机号" />
-        <el-table-column prop="gender" label="性别" width="80">
-          <template #default="scope">
-            {{ scope.row.gender === 1 ? '男' : scope.row.gender === 2 ? '女' : '未知' }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="scope">
-            <el-switch
-              v-model="scope.row.status"
-              :active-value="1"
-              :inactive-value="0"
-              @change="handleStatusChange(scope.row)"
-            />
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="注册时间" width="180" />
-        <el-table-column prop="lastLoginTime" label="最后登录" width="180" />
+        <el-table-column prop="created_at" label="注册时间" width="180" />
+        <el-table-column prop="updated_at" label="最后更新" width="180" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
             <el-button 
@@ -96,23 +83,15 @@
     >
       <el-descriptions :column="2" border>
         <el-descriptions-item label="用户ID">{{ currentUser.id }}</el-descriptions-item>
-        <el-descriptions-item label="用户名">{{ currentUser.username }}</el-descriptions-item>
+        <el-descriptions-item label="OpenID">{{ currentUser.openid }}</el-descriptions-item>
         <el-descriptions-item label="昵称">{{ currentUser.nickname }}</el-descriptions-item>
         <el-descriptions-item label="手机号">{{ currentUser.phone }}</el-descriptions-item>
-        <el-descriptions-item label="性别">
-          {{ currentUser.gender === 1 ? '男' : currentUser.gender === 2 ? '女' : '未知' }}
-        </el-descriptions-item>
-        <el-descriptions-item label="状态">
-          <el-tag :type="currentUser.status === 1 ? 'success' : 'danger'">
-            {{ currentUser.status === 1 ? '正常' : '禁用' }}
-          </el-tag>
-        </el-descriptions-item>
-        <el-descriptions-item label="注册时间">{{ currentUser.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="最后登录">{{ currentUser.lastLoginTime }}</el-descriptions-item>
+        <el-descriptions-item label="注册时间">{{ currentUser.created_at }}</el-descriptions-item>
+        <el-descriptions-item label="最后更新">{{ currentUser.updated_at }}</el-descriptions-item>
         <el-descriptions-item label="头像" :span="2">
           <el-avatar 
             :size="100" 
-            :src="currentUser.avatar || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
+            :src="currentUser.avatar_url || 'https://cube.elemecdn.com/3/7c/3ea6beec64369c2642b92c6726f1epng.png'" 
           />
         </el-descriptions-item>
       </el-descriptions>
@@ -129,7 +108,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getUserList, updateUserStatus, getUserDetail } from '../../api/user';
+import { getUserList } from '../../api/user';
 
 // 加载状态
 const loading = ref(false);
@@ -144,9 +123,10 @@ const total = ref(0);
 
 // 搜索表单
 const searchForm = reactive({
-  username: '',
-  phone: '',
-  status: ''
+  keyword: '',
+  dateRange: [],
+  startDate: '',
+  endDate: ''
 });
 
 // 详情对话框
@@ -158,9 +138,9 @@ const currentUser = reactive({
   phone: '',
   gender: '',
   status: 1,
-  createTime: '',
-  lastLoginTime: '',
-  avatar: ''
+  created_at: '',
+  updated_at: '',
+  avatar_url: ''
 });
 
 // 获取用户列表
@@ -169,13 +149,19 @@ const fetchUserList = async () => {
   try {
     const params = {
       page: currentPage.value,
-      size: pageSize.value,
-      ...searchForm
+      limit: pageSize.value,
+      keyword: searchForm.keyword || '',
+      start_date: searchForm.startDate || '',
+      end_date: searchForm.endDate || ''
     };
     
     const response = await getUserList(params);
-    userList.value = response.data.list || [];
-    total.value = response.data.total || 0;
+    if (response && response.code === 200) {
+      userList.value = response.data.list || [];
+      total.value = response.data.total || 0;
+    } else {
+      ElMessage.error(response?.message || '获取用户列表失败');
+    }
   } catch (error) {
     console.error('获取用户列表失败:', error);
     ElMessage.error('获取用户列表失败');
@@ -190,11 +176,23 @@ const handleSearch = () => {
   fetchUserList();
 };
 
+// 处理日期范围变化
+const handleDateRangeChange = (val) => {
+  if (val && val.length === 2) {
+    searchForm.startDate = val[0];
+    searchForm.endDate = val[1];
+  } else {
+    searchForm.startDate = '';
+    searchForm.endDate = '';
+  }
+};
+
 // 重置搜索
 const resetSearch = () => {
-  Object.keys(searchForm).forEach(key => {
-    searchForm[key] = '';
-  });
+  searchForm.keyword = '';
+  searchForm.dateRange = [];
+  searchForm.startDate = '';
+  searchForm.endDate = '';
   currentPage.value = 1;
   fetchUserList();
 };
@@ -211,24 +209,11 @@ const handleCurrentChange = (page) => {
   fetchUserList();
 };
 
-// 修改用户状态
-const handleStatusChange = async (row) => {
-  try {
-    await updateUserStatus(row.id, row.status);
-    ElMessage.success(`用户状态已${row.status === 1 ? '启用' : '禁用'}`);
-  } catch (error) {
-    console.error('更新用户状态失败:', error);
-    ElMessage.error('更新用户状态失败');
-    // 恢复原状态
-    row.status = row.status === 1 ? 0 : 1;
-  }
-};
-
 // 查看用户详情
 const handleViewDetail = async (row) => {
   try {
-    const response = await getUserDetail(row.id);
-    Object.assign(currentUser, response.data);
+    // 直接使用列表中的数据，不再额外请求
+    Object.assign(currentUser, row);
     detailDialogVisible.value = true;
   } catch (error) {
     console.error('获取用户详情失败:', error);

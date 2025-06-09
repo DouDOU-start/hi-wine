@@ -2,13 +2,17 @@
   <div class="table-list-container">
     <div class="page-header">
       <h2>桌号管理</h2>
-      <el-button type="primary" @click="handleAddTable">添加桌号</el-button>
+      <el-button type="primary" size="large" icon="Plus" @click="handleAddTable">添加桌号</el-button>
     </div>
     
-    <el-card class="filter-container">
+    <el-card class="filter-container" shadow="hover">
       <el-form :inline="true" :model="queryParams" class="filter-form">
         <el-form-item label="桌号">
-          <el-input v-model="queryParams.tableNumber" placeholder="请输入桌号" clearable @keyup.enter="handleQuery" />
+          <el-input v-model="queryParams.tableNumber" placeholder="请输入桌号" clearable @keyup.enter="handleQuery">
+            <template #prefix>
+              <el-icon><Search /></el-icon>
+            </template>
+          </el-input>
         </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="queryParams.status" placeholder="全部状态" clearable>
@@ -17,72 +21,129 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleQuery">查询</el-button>
-          <el-button @click="resetQuery">重置</el-button>
+          <el-button type="primary" @click="handleQuery" icon="Search">查询</el-button>
+          <el-button @click="resetQuery" icon="Refresh">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
     
-    <el-card class="list-container">
+    <el-card class="list-container" shadow="hover">
+      <template #header>
+        <div class="card-header">
+          <span class="header-title">桌号列表</span>
+          <div class="header-operations">
+            <el-tooltip content="刷新数据" placement="top">
+              <el-button type="primary" icon="Refresh" circle @click="getList" />
+            </el-tooltip>
+          </div>
+        </div>
+      </template>
+      
+      <div v-if="loading" class="table-loading">
+        <el-skeleton :rows="5" animated />
+      </div>
+      
+      <div v-else-if="tableList.length === 0" class="empty-data">
+        <el-empty description="暂无桌号数据" />
+      </div>
+      
       <el-table
-        v-loading="loading"
+        v-else
         :data="tableList"
         border
+        stripe
+        highlight-current-row
         style="width: 100%"
+        table-layout="auto"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="tableNumber" label="桌号" min-width="120" />
-        <el-table-column label="二维码" width="120">
+        <el-table-column prop="id" label="ID" width="80" align="center" />
+        <el-table-column prop="tableNumber" label="桌号" min-width="120" align="center" />
+        <el-table-column label="二维码" width="120" align="center">
           <template #default="scope">
-            <el-image
-              style="width: 80px; height: 80px"
-              :src="scope.row.qrcodeUrl"
-              :preview-src-list="[scope.row.qrcodeUrl]"
-              fit="cover"
-            />
+            <div class="qrcode-container">
+              <el-image
+                class="qrcode-image"
+                :src="scope.row.qrcodeUrl"
+                :preview-src-list="[scope.row.qrcodeUrl]"
+                fit="cover"
+                preview-teleported
+              >
+                <template #error>
+                  <div class="qrcode-error">
+                    <el-icon><Picture /></el-icon>
+                    <span>加载失败</span>
+                  </div>
+                </template>
+              </el-image>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.status === 'idle' ? 'success' : 'danger'">
+            <el-tag :type="scope.row.status === 'idle' ? 'success' : 'danger'" effect="dark" round>
               {{ scope.row.status === 'idle' ? '空闲' : '占用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="isActive" label="是否激活" width="100">
+        <el-table-column prop="isActive" label="是否激活" width="100" align="center">
           <template #default="scope">
-            <el-tag :type="scope.row.isActive ? 'success' : 'info'">
+            <el-tag :type="scope.row.isActive ? 'success' : 'info'" effect="plain">
               {{ scope.row.isActive ? '已激活' : '未激活' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="180">
+        <el-table-column label="创建时间" width="180" align="center">
           <template #default="scope">
-            {{ formatDate(scope.row.createdAt) }}
+            <div class="time-info">
+              <el-icon><Calendar /></el-icon>
+              <span>{{ formatDate(scope.row.createdAt) }}</span>
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right" align="center">
           <template #default="scope">
-            <el-button
-              type="primary"
-              size="small"
-              @click="handleEdit(scope.row)"
-            >编辑</el-button>
-            <el-button
-              type="success"
-              size="small"
-              @click="handleRegenerateQrcode(scope.row)"
-            >重新生成二维码</el-button>
-            <el-button
-              type="info"
-              size="small"
-              @click="handleDownloadQrcode(scope.row)"
-            >下载二维码</el-button>
-            <el-button
-              type="danger"
-              size="small"
-              @click="handleDelete(scope.row)"
-            >删除</el-button>
+            <div class="table-actions">
+              <el-tooltip content="编辑" placement="top" :hide-after="1000">
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="handleEdit(scope.row)"
+                >
+                  <el-icon><Edit /></el-icon>
+                  <span class="button-text">编辑</span>
+                </el-button>
+              </el-tooltip>
+              
+              <el-tooltip content="下载二维码" placement="top" :hide-after="1000">
+                <el-button
+                  type="success"
+                  size="small"
+                  @click="handleDownloadQrcode(scope.row)"
+                >
+                  <el-icon><Download /></el-icon>
+                  <span class="button-text">下载</span>
+                </el-button>
+              </el-tooltip>
+              
+              <el-dropdown trigger="hover" @command="(command) => handleCommand(command, scope.row)">
+                <el-button type="info" size="small">
+                  <el-icon><MoreFilled /></el-icon>
+                  <span class="button-text">更多</span>
+                </el-button>
+                <template #dropdown>
+                  <el-dropdown-menu>
+                    <el-dropdown-item command="regenerate">
+                      <el-icon><RefreshRight /></el-icon>
+                      <span>重新生成二维码</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item divided command="delete">
+                      <el-icon><Delete /></el-icon>
+                      <span style="color: #f56c6c;">删除桌号</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </template>
+              </el-dropdown>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -104,12 +165,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, reactive, onMounted, onActivated, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getTableList, deleteTable, regenerateQrcode, downloadQrcode } from '../../api/table';
+import { Search, Refresh, Calendar, Edit, RefreshRight, Download, Delete, Picture, Plus, MoreFilled } from '@element-plus/icons-vue';
 
 const router = useRouter();
+const route = useRoute();
 
 // 查询参数
 const queryParams = reactive({
@@ -131,16 +194,76 @@ const formatDate = (dateString) => {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
 };
 
+// 处理单个桌号项的数据
+const processTableItem = (item) => {
+  // 从截图中看到字段名是下划线形式
+  return {
+    id: item.id,
+    tableNumber: item.table_number || '',
+    qrcodeUrl: item.qrcode_url || '',
+    status: item.status || 'idle',
+    isActive: item.is_active !== undefined ? item.is_active : false,
+    createdAt: item.created_at || ''
+  };
+};
+
 // 获取桌号列表
 const getList = async () => {
   loading.value = true;
   try {
     const res = await getTableList(queryParams);
-    tableList.value = res.data.list;
-    total.value = res.data.total;
+    console.log('桌号列表响应数据:', res);
+    
+    // 根据截图中的数据结构进行处理
+    if (res.data && res.data.list && Array.isArray(res.data.list)) {
+      // 处理list数组形式的数据
+      tableList.value = res.data.list.map(item => {
+        return processTableItem(item);
+      });
+      total.value = res.data.total || res.data.list.length;
+    } else if (res.data && Array.isArray(res.data)) {
+      // 处理直接返回数组的情况
+      tableList.value = res.data.map(item => {
+        return processTableItem(item);
+      });
+      total.value = res.data.length;
+    } else if (res.data) {
+      // 根据截图，后端返回的是对象结构，需要特殊处理
+      console.log('非标准数据结构:', res.data);
+      
+      // 从截图看，数据在res.data.list中，且list是一个对象，不是数组
+      const listData = res.data.list || {};
+      const extractedList = [];
+      
+      // 遍历对象中的每个键，如果是数字索引，则添加到列表中
+      for (const key in listData) {
+        if (!isNaN(parseInt(key))) {
+          extractedList.push(listData[key]);
+        }
+      }
+      
+      console.log('提取的列表数据:', extractedList);
+      
+      // 处理每个桌号项
+      tableList.value = extractedList.map(item => {
+        return processTableItem(item);
+      });
+      
+      // 设置总数
+      total.value = res.data.total || extractedList.length;
+    } else {
+      tableList.value = [];
+      total.value = 0;
+      console.error('获取桌号列表数据格式异常', res);
+    }
+    
+    // 调试输出处理后的数据
+    console.log('处理后的桌号列表:', tableList.value);
   } catch (error) {
     console.error('获取桌号列表失败:', error);
     ElMessage.error('获取桌号列表失败');
+    tableList.value = [];
+    total.value = 0;
   } finally {
     loading.value = false;
   }
@@ -238,8 +361,39 @@ const handleDelete = (row) => {
   }).catch(() => {});
 };
 
+// 添加处理下拉菜单命令的方法
+const handleCommand = (command, row) => {
+  switch (command) {
+    case 'regenerate':
+      handleRegenerateQrcode(row);
+      break;
+    case 'delete':
+      handleDelete(row);
+      break;
+  }
+};
+
 // 初始化
 onMounted(() => {
+  console.log('桌号列表页面加载');
+  getList();
+});
+
+// 监听路由变化，从添加或编辑页面返回时刷新数据
+watch(
+  () => route.fullPath,
+  (newPath, oldPath) => {
+    console.log('路由变化:', oldPath, '->', newPath);
+    if (newPath.includes('/table/list') && (oldPath.includes('/table/add') || oldPath.includes('/table/edit'))) {
+      console.log('从添加/编辑页面返回，刷新数据');
+      getList();
+    }
+  }
+);
+
+// 添加页面激活时刷新数据（用于keep-alive场景）
+onActivated(() => {
+  console.log('桌号列表页面激活');
   getList();
 });
 </script>
@@ -247,6 +401,8 @@ onMounted(() => {
 <style scoped>
 .table-list-container {
   padding: 20px;
+  background-color: #f5f7fa;
+  min-height: calc(100vh - 60px);
 }
 
 .page-header {
@@ -256,22 +412,125 @@ onMounted(() => {
   margin-bottom: 20px;
 }
 
+.page-header h2 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #303133;
+  margin: 0;
+}
+
 .filter-container {
   margin-bottom: 20px;
+  border-radius: 8px;
 }
 
 .filter-form {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
 }
 
 .list-container {
-  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.header-operations {
+  display: flex;
+  gap: 10px;
+}
+
+.table-loading {
+  padding: 20px;
+}
+
+.empty-data {
+  padding: 40px 0;
+}
+
+.qrcode-container {
+  display: flex;
+  justify-content: center;
+}
+
+.qrcode-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+  transition: all 0.3s;
+}
+
+.qrcode-image:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+}
+
+.qrcode-error {
+  width: 80px;
+  height: 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #f5f7fa;
+  color: #909399;
+  font-size: 12px;
+  border-radius: 4px;
+}
+
+.qrcode-error .el-icon {
+  font-size: 24px;
+  margin-bottom: 5px;
+}
+
+.time-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.table-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.button-text {
+  margin-left: 4px;
 }
 
 .pagination-container {
-  display: flex;
-  justify-content: center;
   margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 响应式调整 */
+@media screen and (max-width: 768px) {
+  .filter-form {
+    flex-direction: column;
+  }
+  
+  .table-actions {
+    flex-direction: column;
+  }
+  
+  .pagination-container {
+    justify-content: center;
+  }
 }
 </style> 

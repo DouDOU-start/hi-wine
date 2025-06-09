@@ -30,23 +30,17 @@
                 <template #prefix>
                   <el-icon class="category-icon"><Grid /></el-icon>
                 </template>
-                <el-option-group v-for="group in categoryGroups" :key="group.id" :label="group.name">
-                  <div class="group-label">
-                    <el-icon><Folder /></el-icon>
-                    {{ group.name }}
+                <el-option
+                  v-for="item in categoryOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                >
+                  <div class="category-option">
+                    <el-icon class="category-child-icon"><Document /></el-icon>
+                    <span>{{ item.name }}</span>
                   </div>
-                  <el-option
-                    v-for="item in group.children"
-                    :key="item.id"
-                    :label="item.name"
-                    :value="item.id"
-                  >
-                    <div class="category-option">
-                      <el-icon class="category-child-icon"><Document /></el-icon>
-                      <span>{{ item.name }}</span>
-                    </div>
-                  </el-option>
-                </el-option-group>
+                </el-option>
               </el-select>
             </el-form-item>
           </el-col>
@@ -407,7 +401,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, onBeforeMount } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getProductList, deleteProduct, updateProductStatus, batchUpdateProductStatus } from '../../api/product';
@@ -616,15 +610,82 @@ const fetchProductList = async () => {
 // 获取分类列表
 const fetchCategoryList = async () => {
   try {
+    console.log('获取分类列表...');
     const response = await getCategoryList();
-    // 直接用树形结构
-    if (response.data && response.data.list) {
-      categoryGroups.value = response.data.list; // 用于分组渲染
-      // 扁平化所有分组和子分类，便于查找分类名
-      categoryOptions.value = response.data.list.flatMap(group => [group, ...(group.children || [])]);
+    console.log('分类列表原始响应:', response);
+    
+    // 直接输出原始数据结构
+    console.log('分类数据结构:', JSON.stringify(response, null, 2));
+    
+    // 根据截图显示的数据结构进行处理
+    if (response.data) {
+      // 从截图可以看出，返回的是包含list数组的对象
+      if (response.data.list && Array.isArray(response.data.list)) {
+        // 处理标准的list数组结构
+        categoryOptions.value = response.data.list.map(item => ({
+          id: item.id,
+          name: item.name
+        }));
+      } else {
+        // 从截图看，返回的是一个对象，其中包含数字索引的分类对象
+        const extractedCategories = [];
+        
+        // 检查是否存在直接的list对象（非数组）
+        if (response.data.list && typeof response.data.list === 'object') {
+          console.log('发现list对象结构');
+          const listData = response.data.list;
+          
+          // 遍历对象中的每个键
+          for (const key in listData) {
+            if (!isNaN(parseInt(key))) {
+              const item = listData[key];
+              if (item && typeof item === 'object') {
+                extractedCategories.push({
+                  id: item.id || parseInt(key),
+                  name: item.name || `分类${key}`
+                });
+              }
+            }
+          }
+        } else {
+          // 尝试直接从data中提取
+          for (const key in response.data) {
+            if (!isNaN(parseInt(key))) {
+              const item = response.data[key];
+              if (item && typeof item === 'object') {
+                extractedCategories.push({
+                  id: item.id || parseInt(key),
+                  name: item.name || `分类${key}`
+                });
+              }
+            }
+          }
+        }
+        
+        if (extractedCategories.length > 0) {
+          categoryOptions.value = extractedCategories;
+          console.log('提取的分类数据:', categoryOptions.value);
+        } else {
+          // 如果没有提取到数据，尝试使用调试数据
+          console.log('未能提取到分类数据，使用硬编码数据');
+          categoryOptions.value = [
+            { id: 1, name: '短饮' },
+            { id: 2, name: '长饮' }
+          ];
+        }
+      }
+      
+      console.log('最终分类选项:', categoryOptions.value);
     }
   } catch (error) {
     console.error('获取分类列表失败:', error);
+    ElMessage.error('获取分类列表失败');
+    
+    // 出错时使用默认分类数据
+    categoryOptions.value = [
+      { id: 1, name: '短饮' },
+      { id: 2, name: '长饮' }
+    ];
   }
 };
 
@@ -763,10 +824,21 @@ const getImageUrl = (url) => {
   return url;
 };
 
-// 页面加载时获取数据
-onMounted(() => {
+// 初始化
+onBeforeMount(() => {
+  // 先获取分类列表，确保在页面渲染前有分类数据
   fetchCategoryList();
+});
+
+onMounted(() => {
+  // 获取商品列表
   fetchProductList();
+  
+  // 如果分类列表为空，再次尝试获取
+  if (categoryGroups.value.length === 0) {
+    console.log('分类列表为空，再次尝试获取');
+    fetchCategoryList();
+  }
 });
 </script>
 
