@@ -23,6 +23,9 @@ type QrcodeService interface {
 
 	// GetTableQrcodeList 获取桌号二维码列表
 	GetTableQrcodeList(ctx context.Context, req *qrcodev1.TableQrcodeListReq) ([]qrcodev1.TableQrcode, int, error)
+
+	// DeleteTableQrcode 删除桌号二维码
+	DeleteTableQrcode(ctx context.Context, id int64) error
 }
 
 // 单例实例
@@ -163,4 +166,43 @@ func (s *qrcodeService) GetTableQrcodeList(ctx context.Context, req *qrcodev1.Ta
 	}
 
 	return result, total, nil
+}
+
+// DeleteTableQrcode 删除桌号二维码
+func (s *qrcodeService) DeleteTableQrcode(ctx context.Context, id int64) error {
+	// 1. 检查桌号是否存在
+	var tableQrcode *entity.TableQrcodes
+	err := dao.TableQrcodes.Ctx(ctx).
+		Where(dao.TableQrcodes.Columns().Id, id).
+		Scan(&tableQrcode)
+	if err != nil {
+		return err
+	}
+	if tableQrcode == nil {
+		return gerror.New("桌号不存在")
+	}
+
+	// 2. 检查桌号是否有关联的订单
+	count, err := dao.Orders.Ctx(ctx).
+		Where(dao.Orders.Columns().TableQrcodeId, id).
+		Count()
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return gerror.New("该桌号已有关联订单，无法删除")
+	}
+
+	// 3. 删除桌号二维码记录
+	_, err = dao.TableQrcodes.Ctx(ctx).
+		Where(dao.TableQrcodes.Columns().Id, id).
+		Delete()
+	if err != nil {
+		return gerror.Wrap(err, "删除桌号失败")
+	}
+
+	// 4. 可以选择删除MinIO中的二维码图片，但由于图片URL可能被缓存，这里暂不删除
+	// 如果需要删除，可以通过tableQrcode.QrcodeUrl解析出文件名，然后调用MinIO的删除方法
+
+	return nil
 }

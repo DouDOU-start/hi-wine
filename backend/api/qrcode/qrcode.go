@@ -13,4 +13,5 @@ import (
 type IQrcodeV1 interface {
 	CreateTableQrcode(ctx context.Context, req *v1.CreateTableQrcodeReq) (res *v1.CreateTableQrcodeRes, err error)
 	TableQrcodeList(ctx context.Context, req *v1.TableQrcodeListReq) (res *v1.TableQrcodeListRes, err error)
+	DeleteTableQrcode(ctx context.Context, req *v1.DeleteTableQrcodeReq) (res *v1.DeleteTableQrcodeRes, err error)
 }

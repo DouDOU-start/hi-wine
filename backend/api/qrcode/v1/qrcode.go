@@ -37,3 +37,12 @@ type TableQrcodeListRes struct {
 		Total int           `json:"total"`
 	}] `json:",inline"`
 }
+
+// 删除桌号二维码
+type DeleteTableQrcodeReq struct {
+	g.Meta `path:"/table-qrcodes/{id}" method:"delete" tags:"管理端-二维码" summary:"删除桌号二维码"`
+	ID     int64 `json:"id" in:"path" v:"required#桌号ID必填"`
+}
+type DeleteTableQrcodeRes struct {
+	common.Response[struct{}] `json:",inline"`
+}
