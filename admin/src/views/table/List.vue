@@ -174,6 +174,12 @@ import { Search, Refresh, Calendar, Edit, RefreshRight, Download, Delete, Pictur
 const router = useRouter();
 const route = useRoute();
 
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
+
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
+
 // 查询参数
 const queryParams = reactive({
   pageNum: 1,
@@ -208,8 +214,17 @@ const processTableItem = (item) => {
 };
 
 // 获取桌号列表
-const getList = async () => {
+const getList = async (fromRoute = false) => {
+  // 如果已经在加载中或请求被锁定且不是来自路由变化，则跳过
+  if (loading.value || (isRequestLocked.value && !fromRoute)) {
+    console.log('请求被锁定或正在加载中，跳过此次请求');
+    return;
+  }
+  
+  // 锁定请求，防止短时间内重复调用
+  isRequestLocked.value = true;
   loading.value = true;
+  
   try {
     const res = await getTableList(queryParams);
     console.log('桌号列表响应数据:', res);
@@ -266,6 +281,10 @@ const getList = async () => {
     total.value = 0;
   } finally {
     loading.value = false;
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isRequestLocked.value = false;
+    }, 300);
   }
 };
 
@@ -375,8 +394,9 @@ const handleCommand = (command, row) => {
 
 // 初始化
 onMounted(() => {
-  console.log('桌号列表页面加载');
-  getList();
+  console.log('桌号列表页面挂载');
+  isInitialized.value = true;
+  getList(true);
 });
 
 // 监听路由变化，从添加或编辑页面返回时刷新数据
@@ -386,7 +406,9 @@ watch(
     console.log('路由变化:', oldPath, '->', newPath);
     if (newPath.includes('/table/list') && (oldPath.includes('/table/add') || oldPath.includes('/table/edit'))) {
       console.log('从添加/编辑页面返回，刷新数据');
-      getList();
+      // 设置请求标志，避免onActivated重复请求
+      isRequestLocked.value = true;
+      getList(true);
     }
   }
 );
@@ -394,7 +416,9 @@ watch(
 // 添加页面激活时刷新数据（用于keep-alive场景）
 onActivated(() => {
   console.log('桌号列表页面激活');
-  getList();
+  if (isInitialized.value && !isRequestLocked.value) {
+    getList(false); // 不强制刷新，因为可能已经在路由监听中触发了刷新
+  }
 });
 </script>
 

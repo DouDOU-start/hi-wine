@@ -139,7 +139,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch, onUnmounted } from 'vue';
+import { ref, reactive, onMounted, watch, onUnmounted, onActivated } from 'vue';
 import { getDashboardStats } from '../../api/stats';
 import { getProductRanking } from '../../api/stats';
 import { getCategorySales } from '../../api/stats';
@@ -415,6 +415,7 @@ watch(timeRange, () => {
 
 // 页面挂载时执行
 onMounted(async () => {
+  console.log('仪表盘页面已挂载');
   // 获取数据
   await fetchDashboardData();
   await fetchProductRanking();
@@ -430,6 +431,19 @@ onMounted(async () => {
   
   // 监听窗口大小变化
   window.addEventListener('resize', handleResize);
+});
+
+// 当页面从缓存中激活时触发（切换tab时）
+onActivated(async () => {
+  console.log('仪表盘页面已激活');
+  // 重新获取数据
+  await fetchDashboardData();
+  await fetchProductRanking();
+  await fetchRecentOrders();
+  
+  // 重新获取图表数据
+  fetchSalesTrend();
+  fetchCategorySales();
 });
 
 // 页面卸载时执行

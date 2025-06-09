@@ -51,6 +51,12 @@ type PackageService interface {
 
 	// CreateUserOrderWithPackage 创建用户套餐购买订单
 	CreateUserOrderWithPackage(ctx context.Context, userId int64, packageId int64) (orderId int64, err error)
+
+	// GetPackageWithProducts 获取带商品列表的套餐详情
+	GetPackageWithProducts(ctx context.Context, packageID int64) (*v1.AdminPackageWithProducts, error)
+
+	// GetPackageFullDetail 获取套餐详细信息（包含基本信息、统计信息和商品列表）
+	GetPackageFullDetail(ctx context.Context, packageID int64) (*v1.AdminPackageFullDetail, error)
 }
 
 // packageService 套餐服务实现
@@ -110,8 +116,10 @@ func (s *packageService) GetPackageList(ctx context.Context, req *v1.AdminPackag
 		adminPackage.Name = item.Name
 		adminPackage.Description = item.Description
 		adminPackage.Price = item.Price
-		adminPackage.DurationHours = item.DurationMinutes / 60 // 转换分钟为小时
+		adminPackage.DurationMinutes = item.DurationMinutes // 直接使用分钟
 		adminPackage.IsActive = item.IsActive == 1
+		adminPackage.CreatedAt = item.CreatedAt.Format("2006-01-02 15:04:05")
+		adminPackage.UpdatedAt = item.UpdatedAt.Format("2006-01-02 15:04:05")
 
 		list = append(list, adminPackage)
 	}
@@ -133,12 +141,14 @@ func (s *packageService) GetPackageDetail(ctx context.Context, id int64) (detail
 
 	// 转换为API响应格式
 	detail = &v1.AdminPackage{
-		ID:            int64(packageInfo.Id),
-		Name:          packageInfo.Name,
-		Description:   packageInfo.Description,
-		Price:         packageInfo.Price,
-		DurationHours: packageInfo.DurationMinutes / 60, // 转换分钟为小时
-		IsActive:      packageInfo.IsActive == 1,
+		ID:              int64(packageInfo.Id),
+		Name:            packageInfo.Name,
+		Description:     packageInfo.Description,
+		Price:           packageInfo.Price,
+		DurationMinutes: packageInfo.DurationMinutes,
+		IsActive:        packageInfo.IsActive == 1,
+		CreatedAt:       packageInfo.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:       packageInfo.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	return detail, nil
@@ -154,15 +164,15 @@ func (s *packageService) CreatePackage(ctx context.Context, req *v1.AdminPackage
 			isActive = 0
 		}
 
-		// 转换小时为分钟
-		durationMinutes := req.DurationHours * 60
-
+		now := gtime.Now()
 		packageData := entity.DrinkAllYouCanPackages{
 			Name:            req.Name,
 			Description:     req.Description,
 			Price:           req.Price,
-			DurationMinutes: durationMinutes,
+			DurationMinutes: req.DurationMinutes,
 			IsActive:        isActive,
+			CreatedAt:       now,
+			UpdatedAt:       now,
 		}
 
 		// 插入记录
@@ -186,12 +196,14 @@ func (s *packageService) CreatePackage(ctx context.Context, req *v1.AdminPackage
 
 		// 转换为API响应格式
 		detail = &v1.AdminPackage{
-			ID:            int64(createdPackage.Id),
-			Name:          createdPackage.Name,
-			Description:   createdPackage.Description,
-			Price:         createdPackage.Price,
-			DurationHours: createdPackage.DurationMinutes / 60, // 转换分钟为小时
-			IsActive:      createdPackage.IsActive == 1,
+			ID:              int64(createdPackage.Id),
+			Name:            createdPackage.Name,
+			Description:     createdPackage.Description,
+			Price:           createdPackage.Price,
+			DurationMinutes: createdPackage.DurationMinutes,
+			IsActive:        createdPackage.IsActive == 1,
+			CreatedAt:       createdPackage.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:       createdPackage.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 
 		return nil
@@ -233,8 +245,8 @@ func (s *packageService) UpdatePackage(ctx context.Context, req *v1.AdminPackage
 			updateData["price"] = req.Price
 		}
 
-		if req.DurationHours > 0 {
-			updateData["duration_minutes"] = req.DurationHours * 60 // 转换小时为分钟
+		if req.DurationMinutes > 0 {
+			updateData["duration_minutes"] = req.DurationMinutes
 		}
 
 		if req.IsActive != nil {
@@ -266,12 +278,14 @@ func (s *packageService) UpdatePackage(ctx context.Context, req *v1.AdminPackage
 
 		// 转换为API响应格式
 		detail = &v1.AdminPackage{
-			ID:            int64(updatedPackage.Id),
-			Name:          updatedPackage.Name,
-			Description:   updatedPackage.Description,
-			Price:         updatedPackage.Price,
-			DurationHours: updatedPackage.DurationMinutes / 60, // 转换分钟为小时
-			IsActive:      updatedPackage.IsActive == 1,
+			ID:              int64(updatedPackage.Id),
+			Name:            updatedPackage.Name,
+			Description:     updatedPackage.Description,
+			Price:           updatedPackage.Price,
+			DurationMinutes: updatedPackage.DurationMinutes,
+			IsActive:        updatedPackage.IsActive == 1,
+			CreatedAt:       updatedPackage.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:       updatedPackage.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 
 		return nil
@@ -672,4 +686,144 @@ func (s *packageService) CreateUserOrderWithPackage(ctx context.Context, userId 
 	}
 
 	return orderId, nil
+}
+
+// GetPackageWithProducts 获取带商品列表的套餐详情
+func (s *packageService) GetPackageWithProducts(ctx context.Context, packageID int64) (*v1.AdminPackageWithProducts, error) {
+	// 1. 查询套餐基本信息
+	var packageInfo entity.DrinkAllYouCanPackages
+	err := g.DB().Model("drink_all_you_can_packages").Where("id", packageID).Scan(&packageInfo)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询套餐信息失败, ID:%d, 错误:%v", packageID, err)
+		return nil, err
+	}
+	if packageInfo.Id == 0 {
+		return nil, gerror.New("套餐不存在")
+	}
+
+	// 2. 创建返回结构
+	detail := &v1.AdminPackageWithProducts{
+		ID:              int64(packageInfo.Id),
+		Name:            packageInfo.Name,
+		Description:     packageInfo.Description,
+		Price:           packageInfo.Price,
+		DurationMinutes: packageInfo.DurationMinutes,
+		DurationDays:    packageInfo.DurationMinutes / (60 * 24), // 计算天数
+		IsActive:        packageInfo.IsActive == 1,
+		CreatedAt:       packageInfo.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:       packageInfo.UpdatedAt.Format("2006-01-02 15:04:05"),
+	}
+
+	// 3. 获取套餐包含的商品列表
+	products, err := s.GetPackageProducts(ctx, packageID)
+	if err != nil {
+		g.Log().Errorf(ctx, "获取套餐商品列表失败, ID:%d, 错误:%v", packageID, err)
+		// 不返回错误，保持空商品列表
+		detail.Products = make([]productv1.UserProduct, 0)
+		detail.ProductsCount = 0
+	} else {
+		detail.Products = products
+		detail.ProductsCount = len(products)
+	}
+
+	return detail, nil
+}
+
+// GetPackageFullDetail 获取套餐详细信息（包含基本信息、统计信息和商品列表）
+func (s *packageService) GetPackageFullDetail(ctx context.Context, packageID int64) (*v1.AdminPackageFullDetail, error) {
+	detail := &v1.AdminPackageFullDetail{}
+
+	// 1. 查询套餐基本信息
+	var packageInfo entity.DrinkAllYouCanPackages
+	err := g.DB().Model("drink_all_you_can_packages").Where("id", packageID).Scan(&packageInfo)
+	if err != nil {
+		g.Log().Errorf(ctx, "查询套餐信息失败, ID:%d, 错误:%v", packageID, err)
+		return nil, err
+	}
+	if packageInfo.Id == 0 {
+		return nil, gerror.New("套餐不存在")
+	}
+
+	// 设置基本信息
+	detail.ID = int64(packageInfo.Id)
+	detail.Name = packageInfo.Name
+	detail.Description = packageInfo.Description
+	detail.Price = packageInfo.Price
+	detail.DurationMinutes = packageInfo.DurationMinutes
+	detail.DurationDays = packageInfo.DurationMinutes / (60 * 24) // 计算天数
+	detail.IsActive = packageInfo.IsActive == 1
+	detail.CreatedAt = packageInfo.CreatedAt.Format("Y-m-d H:i:s")
+	detail.UpdatedAt = packageInfo.UpdatedAt.Format("Y-m-d H:i:s")
+
+	// 2. 获取套餐统计信息
+	stats, err := s.GetPackageStats(ctx, packageID)
+	if err != nil {
+		g.Log().Errorf(ctx, "获取套餐统计信息失败, ID:%d, 错误:%v", packageID, err)
+		// 不返回错误，继续获取其他信息
+	} else {
+		detail.Stats = *stats
+	}
+
+	// 3. 获取套餐包含的商品列表
+	products, err := s.GetPackageProducts(ctx, packageID)
+	if err != nil {
+		g.Log().Errorf(ctx, "获取套餐商品列表失败, ID:%d, 错误:%v", packageID, err)
+		// 不返回错误，继续获取其他信息
+	} else {
+		detail.Products = products
+	}
+
+	// 4. 获取最近购买记录
+	type PurchaseRecord struct {
+		ID           int64       `json:"id"`
+		UserID       int64       `json:"user_id"`
+		UserName     string      `json:"user_name"`
+		OrderID      int64       `json:"order_id"`
+		OrderSN      string      `json:"order_sn"`
+		PurchaseTime *gtime.Time `json:"purchase_time"`
+		Status       string      `json:"status"`
+	}
+
+	var recentPurchases []PurchaseRecord
+	err = g.DB().Model("user_packages up").
+		LeftJoin("users u", "u.id = up.user_id").
+		LeftJoin("orders o", "o.id = up.order_id").
+		Fields("up.id, up.user_id, u.nickname as user_name, up.order_id, o.order_sn, o.created_at as purchase_time, up.status").
+		Where("up.package_id", packageID).
+		Order("up.created_at DESC").
+		Limit(10).
+		Scan(&recentPurchases)
+
+	if err != nil {
+		g.Log().Errorf(ctx, "获取套餐最近购买记录失败, ID:%d, 错误:%v", packageID, err)
+		// 不返回错误，继续处理
+	} else {
+		// 转换为API响应格式
+		for _, record := range recentPurchases {
+			purchase := struct {
+				ID           int64  `json:"id"`
+				UserID       int64  `json:"user_id"`
+				UserName     string `json:"user_name"`
+				OrderID      int64  `json:"order_id"`
+				OrderSN      string `json:"order_sn"`
+				PurchaseTime string `json:"purchase_time"`
+				Status       string `json:"status"`
+			}{
+				ID:       record.ID,
+				UserID:   record.UserID,
+				UserName: record.UserName,
+				OrderID:  record.OrderID,
+				OrderSN:  record.OrderSN,
+				Status:   record.Status,
+			}
+
+			if record.PurchaseTime != nil {
+				purchase.PurchaseTime = record.PurchaseTime.Format("Y-m-d H:i:s")
+			}
+
+			detail.RecentPurchases = append(detail.RecentPurchases, purchase)
+		}
+	}
+
+	return detail, nil
 }

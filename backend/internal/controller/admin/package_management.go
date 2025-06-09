@@ -112,3 +112,45 @@ func (c *ControllerV1) AdminPackageDetail(ctx context.Context, req *v1.AdminPack
 
 	return res, nil
 }
+
+// AdminPackageFullDetail 获取套餐详细信息（包含基本信息、统计信息和商品列表）
+func (c *ControllerV1) AdminPackageFullDetail(ctx context.Context, req *v1.AdminPackageFullDetailReq) (res *v1.AdminPackageFullDetailRes, err error) {
+	// 创建响应对象
+	res = &v1.AdminPackageFullDetailRes{}
+
+	// 调用服务获取套餐详细信息
+	detail, err := service.Package().GetPackageFullDetail(ctx, req.PackageID)
+	if err != nil {
+		res.Code = common.CodeServerError
+		res.Message = err.Error()
+		return res, nil
+	}
+
+	// 设置响应数据
+	res.Code = common.CodeSuccess
+	res.Message = "获取套餐详细信息成功"
+	res.Data = *detail
+
+	return res, nil
+}
+
+// AdminPackageWithProducts 获取带商品列表的套餐详情
+func (c *ControllerV1) AdminPackageWithProducts(ctx context.Context, req *v1.AdminPackageWithProductsReq) (res *v1.AdminPackageWithProductsRes, err error) {
+	// 创建响应对象
+	res = &v1.AdminPackageWithProductsRes{}
+
+	// 调用服务获取带商品列表的套餐详情
+	detail, err := service.Package().GetPackageWithProducts(ctx, req.PackageID)
+	if err != nil {
+		res.Code = common.CodeServerError
+		res.Message = err.Error()
+		return res, nil
+	}
+
+	// 设置响应数据
+	res.Code = common.CodeSuccess
+	res.Message = "获取套餐详情成功"
+	res.Data = *detail
+
+	return res, nil
+}

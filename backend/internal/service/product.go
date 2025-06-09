@@ -114,6 +114,8 @@ func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) 
 			Description: p.Description,
 			CategoryID:  int64(p.CategoryId),
 			Status:      p.IsActive,
+			CreatedAt:   p.CreatedAt.Format("2006-01-02 15:04:05"),
+			UpdatedAt:   p.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
 	}
 
@@ -180,6 +182,8 @@ func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateR
 		Description: newProduct.Description,
 		CategoryID:  int64(newProduct.CategoryId),
 		Status:      newProduct.IsActive,
+		CreatedAt:   newProduct.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   newProduct.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -208,36 +212,41 @@ func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateR
 	}
 
 	// 构建更新数据
-	data := g.Map{}
+	updateData := g.Map{}
 	if req.Name != "" {
-		data[dao.Products.Columns().Name] = req.Name
+		updateData[dao.Products.Columns().Name] = req.Name
 	}
 	if req.CategoryID > 0 {
-		data[dao.Products.Columns().CategoryId] = req.CategoryID
+		updateData[dao.Products.Columns().CategoryId] = req.CategoryID
 	}
 	if req.Price > 0 {
-		data[dao.Products.Columns().Price] = req.Price
+		updateData[dao.Products.Columns().Price] = req.Price
 	}
 	if req.Stock >= 0 {
-		data[dao.Products.Columns().Stock] = req.Stock
+		updateData[dao.Products.Columns().Stock] = req.Stock
 	}
 	if req.ImageURL != "" {
-		data[dao.Products.Columns().ImageUrl] = req.ImageURL
+		updateData[dao.Products.Columns().ImageUrl] = req.ImageURL
 	}
 	if req.Description != "" {
-		data[dao.Products.Columns().Description] = req.Description
+		updateData[dao.Products.Columns().Description] = req.Description
 	}
 	if req.IsActive != nil {
 		isActive := 0
 		if *req.IsActive {
 			isActive = 1
 		}
-		data[dao.Products.Columns().IsActive] = isActive
+		updateData[dao.Products.Columns().IsActive] = isActive
 	}
-	data[dao.Products.Columns().UpdatedAt] = gtime.Now()
+	updateData[dao.Products.Columns().UpdatedAt] = gtime.Now()
+
+	// 如果没有更新数据，直接返回
+	if len(updateData) == 0 {
+		return nil, gerror.New("没有需要更新的数据")
+	}
 
 	// 更新数据
-	_, err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, req.ProductID).Update(data)
+	_, err = dao.Products.Ctx(ctx).Where(dao.Products.Columns().Id, req.ProductID).Update(updateData)
 	if err != nil {
 		return nil, err
 	}
@@ -259,6 +268,8 @@ func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateR
 		Description: updatedProduct.Description,
 		CategoryID:  int64(updatedProduct.CategoryId),
 		Status:      updatedProduct.IsActive,
+		CreatedAt:   updatedProduct.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   updatedProduct.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
 }
 
@@ -385,6 +396,8 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 		list[i].ImageURL = p.ImageUrl
 		list[i].CategoryID = int64(p.CategoryId)
 		list[i].Status = p.IsActive
+		list[i].CreatedAt = p.CreatedAt.Format("2006-01-02 15:04:05")
+		list[i].UpdatedAt = p.UpdatedAt.Format("2006-01-02 15:04:05")
 		// 暂时不设置销量
 		// list[i].SalesCount = p.SalesCount
 	}
@@ -416,6 +429,8 @@ func (s *productService) GetProductDetail(ctx context.Context, id int64) (*produ
 		Description: product.Description,
 		CategoryID:  int64(product.CategoryId),
 		Status:      product.IsActive,
+		CreatedAt:   product.CreatedAt.Format("2006-01-02 15:04:05"),
+		UpdatedAt:   product.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}
 
 	return detail, nil

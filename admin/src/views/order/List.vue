@@ -172,7 +172,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted, computed, onActivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getOrderList, updateOrderStatus, exportOrders } from '../../api/order';
@@ -182,6 +182,11 @@ import {
 } from '@element-plus/icons-vue';
 
 const router = useRouter();
+
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
 
 // 加载状态
 const loading = ref(false);
@@ -204,6 +209,9 @@ const searchForm = reactive({
 
 // 获取订单列表
 const fetchOrderList = async () => {
+  if (isRequestLocked.value) return;
+  isRequestLocked.value = true;
+
   loading.value = true;
   try {
     const params = {
@@ -280,6 +288,7 @@ const fetchOrderList = async () => {
     ElMessage.error('获取订单列表失败');
   } finally {
     loading.value = false;
+    isRequestLocked.value = false;
   }
 };
 
@@ -507,7 +516,20 @@ const cancelledCount = computed(() => {
 
 // 页面加载时获取数据
 onMounted(() => {
-  fetchOrderList();
+  console.log('订单列表页面已挂载');
+  if (!isInitialized.value) {
+    fetchOrderList();
+    isInitialized.value = true;
+  }
+});
+
+// 当页面从缓存中激活时触发（切换tab时）
+onActivated(() => {
+  console.log('订单列表页面已激活');
+  // 避免重复请求数据
+  if (!isRequestLocked.value) {
+    fetchOrderList();
+  }
 });
 </script>
 

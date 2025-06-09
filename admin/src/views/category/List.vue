@@ -100,9 +100,14 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onActivated } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getCategoryList, addCategory, updateCategory, deleteCategory, updateCategoryStatus } from '../../api/category';
+
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
 
 // 加载状态
 const loading = ref(false);
@@ -143,6 +148,9 @@ const rules = {
 
 // 获取分类列表
 const fetchCategoryList = async () => {
+  if (isRequestLocked.value) return;
+  isRequestLocked.value = true;
+
   loading.value = true;
   try {
     const params = {
@@ -158,6 +166,7 @@ const fetchCategoryList = async () => {
     ElMessage.error('获取分类列表失败');
   } finally {
     loading.value = false;
+    isRequestLocked.value = false;
   }
 };
 
@@ -265,7 +274,20 @@ const submitForm = () => {
 
 // 页面加载时获取数据
 onMounted(() => {
-  fetchCategoryList();
+  console.log('分类列表页面已挂载');
+  if (!isInitialized.value) {
+    fetchCategoryList();
+    isInitialized.value = true;
+  }
+});
+
+// 当页面从缓存中激活时触发（切换tab时）
+onActivated(() => {
+  console.log('分类列表页面已激活');
+  // 避免重复请求数据
+  if (!isRequestLocked.value) {
+    fetchCategoryList();
+  }
 });
 </script>
 

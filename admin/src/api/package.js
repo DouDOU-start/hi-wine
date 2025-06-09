@@ -12,7 +12,7 @@ export function getPackageList(params) {
 // 获取套餐详情
 export function getPackageDetail(id) {
   return request({
-    url: `/admin/packages/${id}`,
+    url: `/admin/packages/${id}/with-products`,
     method: 'get'
   });
 }
@@ -52,6 +52,14 @@ export function associatePackageProducts(packageId, productIds) {
   });
 }
 
+// 移除套餐中的单个商品
+export function removeProductFromPackage(packageId, productId) {
+  return request({
+    url: `/admin/packages/${packageId}/products/${productId}`,
+    method: 'delete'
+  });
+}
+
 // 获取套餐关联的商品列表
 export function getPackageProducts(packageId) {
   return request({
@@ -72,7 +80,7 @@ export function getUserPackageList(params) {
 // 获取用户套餐详情
 export function getUserPackageDetail(id) {
   return request({
-    url: `/admin/user-packages/${id}`,
+    url: `/admin/user-packages/${id}/full-detail`,
     method: 'get'
   });
 }

@@ -66,7 +66,7 @@
                   v-for="item in categoryOptions"
                   :key="item.id"
                   :label="item.name"
-                  :value="String(item.id)"
+                  :value="item.id"
                 >
                   <div class="category-option">
                     <el-icon><Folder /></el-icon>
@@ -259,7 +259,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue';
+import { ref, reactive, computed, onMounted, watch, onActivated } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { 
@@ -316,7 +316,7 @@ const uploadHeaders = computed(() => {
 const form = reactive({
   id: '',
   name: '',
-  categoryId: '',
+  categoryId: null,
   price: 0,
   stock: 0,
   image: '',
@@ -365,6 +365,8 @@ const fetchProductDetail = async (id) => {
     // 根据截图中的响应格式调整数据处理逻辑
     if (response.data) {
       const product = response.data;
+      console.log('原始商品数据:', product);
+      console.log('分类ID类型:', typeof product.category_id, '值:', product.category_id);
       
       // 映射后端字段到表单字段
       form.id = product.id;
@@ -375,8 +377,11 @@ const fetchProductDetail = async (id) => {
       form.description = product.description || '';
       // 状态字段可能是is_active(布尔值)或status(数字)
       form.status = product.status === 1 || product.is_active === true ? 1 : 0;
-      // 分类ID处理
-      form.categoryId = String(product.category_id || '');
+      // 分类ID处理，保持为数字类型
+      form.categoryId = product.category_id || null;
+      
+      console.log('表单数据设置后:', form);
+      console.log('表单分类ID类型:', typeof form.categoryId, '值:', form.categoryId);
       
       ElMessage.success('商品信息加载成功');
       // 赋值后刷新表单校验
@@ -482,21 +487,23 @@ const submitForm = () => {
       // 准备提交的数据，确保格式与后端API一致
       const submitData = {
         name: form.name,
-        category_id: parseInt(form.categoryId),
+        category_id: form.categoryId,
         price: parseFloat(form.price),
         stock: parseInt(form.stock),
         image_url: form.image,
         description: form.description,
-        status: parseInt(form.status)
+        is_active: parseInt(form.status)
       };
       
       if (isEdit.value) {
         await updateProduct(form.id, submitData);
         ElMessage.success('商品更新成功');
+        // 返回列表页面，列表页面的onActivated钩子会重新加载数据
         goBack();
       } else {
         await addProduct(submitData);
         ElMessage.success('商品添加成功');
+        // 返回列表页面，列表页面的onActivated钩子会重新加载数据
         goBack();
       }
     } catch (error) {
@@ -508,25 +515,29 @@ const submitForm = () => {
   });
 };
 
+// 重置表单数据
+const resetFormData = () => {
+  console.log('重置表单数据');
+  form.id = '';
+  form.name = '';
+  form.categoryId = null;
+  form.price = 0;
+  form.stock = 0;
+  form.image = '';
+  form.status = 1;
+  form.description = '';
+  
+  // 延迟执行表单验证重置，确保DOM更新后执行
+  setTimeout(() => {
+    if (formRef.value) {
+      formRef.value.clearValidate();
+    }
+  }, 0);
+};
+
 // 重置表单
 const resetForm = () => {
-  if (formRef.value) {
-    formRef.value.resetFields();
-  }
-  
-  if (!isEdit.value) {
-    form.id = '';
-    form.name = '';
-    form.categoryId = '';
-    form.price = 0;
-    form.stock = 0;
-    form.image = '';
-    form.status = 1;
-    form.description = '';
-  } else {
-    // 如果是编辑模式，重新获取商品详情
-    fetchProductDetail(route.params.id);
-  }
+  resetFormData();
 };
 
 // 返回列表
@@ -536,21 +547,43 @@ const goBack = () => {
 
 // 页面加载时获取数据
 onMounted(async () => {
+  console.log('商品编辑页面已挂载', route.path);
   await fetchCategoryList();
+  
   if (isEdit.value) {
+    // 编辑模式，获取商品详情
     await fetchProductDetail(route.params.id);
   } else {
-    // 添加商品时，重置form为初始空值
-    form.id = '';
-    form.name = '';
-    form.categoryId = '';
-    form.price = 0;
-    form.stock = 0;
-    form.image = '';
-    form.status = 1;
-    form.description = '';
+    // 添加模式，始终重置表单数据
+    resetFormData();
+    // 如果是从列表页点击"添加商品"按钮过来的，清除标志
+    if (localStorage.getItem('product_form_reset') === 'true') {
+      localStorage.removeItem('product_form_reset');
+    }
   }
 });
+
+// 当页面从缓存中激活时触发
+onActivated(() => {
+  console.log('商品编辑页面已激活', route.path);
+  // 如果当前是添加商品路径，则清空表单
+  if (route.path === '/product/add') {
+    console.log('检测到添加商品路径，清空表单');
+    resetFormData();
+  }
+});
+
+// 监听路由变化
+watch(
+  () => route.path,
+  (newPath) => {
+    console.log('路由路径变化:', newPath);
+    if (newPath === '/product/add') {
+      console.log('路由变为添加商品路径，清空表单');
+      resetFormData();
+    }
+  }
+);
 
 // 新增：监听路由参数变化，动态获取详情
 watch(

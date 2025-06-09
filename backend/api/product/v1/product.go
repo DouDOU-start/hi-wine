@@ -19,6 +19,8 @@ type UserProduct struct {
 	CategoryID  int64   `json:"category_id,omitempty"` // 所属分类ID
 	Status      int     `json:"status,omitempty"`      // 商品状态(1:上架, 0:下架)
 	SalesCount  int     `json:"sales_count,omitempty"` // 销量
+	CreatedAt   string  `json:"created_at,omitempty"`  // 创建时间
+	UpdatedAt   string  `json:"updated_at,omitempty"`  // 更新时间
 }
 
 // UserProductDetail 商品详情

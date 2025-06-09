@@ -363,7 +363,16 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" sortable />
+        <el-table-column prop="created_at" label="创建时间" width="180" sortable>
+          <template #default="scope">
+            {{ formatDateTime(scope.row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="updated_at" label="更新时间" width="180" sortable>
+          <template #default="scope">
+            {{ formatDateTime(scope.row.updated_at) }}
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="scope">
             <el-button 
@@ -401,7 +410,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed, onBeforeMount } from 'vue';
+import { ref, reactive, onMounted, computed, onBeforeMount, onActivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getProductList, deleteProduct, updateProductStatus, batchUpdateProductStatus } from '../../api/product';
@@ -415,8 +424,32 @@ import {
 
 const router = useRouter();
 
+// 格式化日期时间
+const formatDateTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '暂无数据';
+  
+  try {
+    const date = new Date(dateTimeStr);
+    if (isNaN(date.getTime())) return dateTimeStr; // 如果转换失败，返回原始字符串
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error('日期格式化错误:', error);
+    return dateTimeStr; // 发生错误时返回原始字符串
+  }
+};
+
 // 加载状态
 const loading = ref(false);
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
 
 // 商品列表数据
 const productList = ref([]);
@@ -550,7 +583,15 @@ const handleBatchStatusChange = (status) => {
 
 // 获取商品列表
 const fetchProductList = async () => {
+  // 如果已经在加载中或请求被锁定，则跳过
+  if (loading.value || isRequestLocked.value) {
+    return;
+  }
+  
+  // 锁定请求，防止短时间内重复调用
+  isRequestLocked.value = true;
   loading.value = true;
+  
   try {
     // 构建查询参数
     const params = {
@@ -591,7 +632,10 @@ const fetchProductList = async () => {
           // 确保价格是数字类型
           price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
           // 确保图片字段存在
-          image: item.image_url || item.image
+          image: item.image_url || item.image,
+          // 确保创建时间和更新时间字段存在
+          created_at: item.created_at || '暂无数据',
+          updated_at: item.updated_at || '暂无数据'
         };
       });
       total.value = response.data.total || 0;
@@ -604,6 +648,10 @@ const fetchProductList = async () => {
     ElMessage.error('获取商品列表失败');
   } finally {
     loading.value = false;
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isRequestLocked.value = false;
+    }, 300);
   }
 };
 
@@ -725,6 +773,8 @@ const handleSelectionChange = (selection) => {
 
 // 添加商品
 const handleAdd = () => {
+  // 在跳转前设置一个标志，表示需要清空编辑页面的缓存数据
+  localStorage.setItem('product_form_reset', 'true');
   router.push('/product/add');
 };
 
@@ -825,20 +875,19 @@ const getImageUrl = (url) => {
 };
 
 // 初始化
-onBeforeMount(() => {
-  // 先获取分类列表，确保在页面渲染前有分类数据
-  fetchCategoryList();
-});
-
 onMounted(() => {
+  console.log('商品列表页面已挂载');
+  // 获取分类数据
+  fetchCategoryList();
   // 获取商品列表
   fetchProductList();
-  
-  // 如果分类列表为空，再次尝试获取
-  if (categoryGroups.value.length === 0) {
-    console.log('分类列表为空，再次尝试获取');
-    fetchCategoryList();
-  }
+});
+
+// 添加onActivated生命周期钩子，当页面从缓存中激活时重新加载数据
+onActivated(() => {
+  console.log('商品列表页面已激活');
+  // 重新加载数据
+  fetchProductList();
 });
 </script>
 

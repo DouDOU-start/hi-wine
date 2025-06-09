@@ -34,6 +34,10 @@ type IAdminV1 interface {
 	AdminPackageAddProducts(ctx context.Context, req *v1.AdminPackageAddProductsReq) (res *v1.AdminPackageAddProductsRes, err error)
 	AdminPackageRemoveProduct(ctx context.Context, req *v1.AdminPackageRemoveProductReq) (res *v1.AdminPackageRemoveProductRes, err error)
 	AdminPackageProductList(ctx context.Context, req *v1.AdminPackageProductListReq) (res *v1.AdminPackageProductListRes, err error)
+	AdminPackageStats(ctx context.Context, req *v1.AdminPackageStatsReq) (res *v1.AdminPackageStatsRes, err error)
+	AdminPackageDetail(ctx context.Context, req *v1.AdminPackageDetailReq) (res *v1.AdminPackageDetailRes, err error)
+	AdminPackageFullDetail(ctx context.Context, req *v1.AdminPackageFullDetailReq) (res *v1.AdminPackageFullDetailRes, err error)
+	AdminPackageWithProducts(ctx context.Context, req *v1.AdminPackageWithProductsReq) (res *v1.AdminPackageWithProductsRes, err error)
 	
 	// 商品相关接口
 	AdminProductList(ctx context.Context, req *v1.AdminProductListReq) (res *v1.AdminProductListRes, err error)
@@ -44,6 +48,11 @@ type IAdminV1 interface {
 	
 	// 用户套餐相关接口
 	AdminUserPackageList(ctx context.Context, req *v1.AdminUserPackageListReq) (res *v1.AdminUserPackageListRes, err error)
+	AdminUserPackageDetail(ctx context.Context, req *v1.AdminUserPackageDetailReq) (res *v1.AdminUserPackageDetailRes, err error)
+	AdminUserPackageCreate(ctx context.Context, req *v1.AdminUserPackageCreateReq) (res *v1.AdminUserPackageCreateRes, err error)
+	AdminUserPackageUpdateStatus(ctx context.Context, req *v1.AdminUserPackageUpdateStatusReq) (res *v1.AdminUserPackageUpdateStatusRes, err error)
+	AdminUserActivePackages(ctx context.Context, req *v1.AdminUserActivePackagesReq) (res *v1.AdminUserActivePackagesRes, err error)
+	AdminUserPackageFullDetail(ctx context.Context, req *v1.AdminUserPackageFullDetailReq) (res *v1.AdminUserPackageFullDetailRes, err error)
 
 	// 用户管理相关接口
 	AdminUserList(ctx context.Context, req *v1.AdminUserListReq) (res *v1.AdminUserListRes, err error)

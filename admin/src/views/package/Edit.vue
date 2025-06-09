@@ -141,6 +141,7 @@
         border
         style="width: 100%"
         @selection-change="handleSelectionChange"
+        ref="productTableRef"
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
@@ -184,10 +185,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, onActivated, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { createPackage, getPackageDetail, updatePackage, getPackageProducts, associatePackageProducts } from '../../api/package';
+import { createPackage, getPackageDetail, updatePackage, getPackageProducts, associatePackageProducts, removeProductFromPackage } from '../../api/package';
 import { getProductList } from '../../api/product';
 import { getCategoryList } from '../../api/category';
 
@@ -195,6 +196,14 @@ const router = useRouter();
 const route = useRoute();
 const packageId = computed(() => route.params.id);
 const isEdit = computed(() => !!packageId.value);
+
+// 防止重复请求的锁
+const isDetailRequestLocked = ref(false);
+const isProductsRequestLocked = ref(false);
+const isCategoriesRequestLocked = ref(false);
+
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
 
 // 表单引用
 const packageFormRef = ref(null);
@@ -239,6 +248,7 @@ const products = ref([]);
 const productTotal = ref(0);
 const tempSelectedProducts = ref([]);
 const categories = ref([]);
+const productTableRef = ref(null);
 
 // 商品查询参数
 const productQueryParams = reactive({
@@ -257,24 +267,76 @@ const goBack = () => {
 const getDetail = async () => {
   if (!isEdit.value) return;
   
+  // 如果请求已被锁定，则跳过
+  if (isDetailRequestLocked.value) {
+    console.log('获取套餐详情请求被锁定，跳过此次请求');
+    return;
+  }
+  
+  // 锁定请求
+  isDetailRequestLocked.value = true;
+  
   try {
     const res = await getPackageDetail(packageId.value);
+    console.log('套餐详情原始数据:', res.data);
+    
+    // 处理后端返回的数据
     const packageData = res.data;
     
-    // 填充表单
-    packageForm.name = packageData.name;
-    packageForm.price = packageData.price;
-    packageForm.durationMinutes = packageData.durationMinutes;
-    packageForm.description = packageData.description;
-    packageForm.isActive = packageData.isActive;
+    // 填充表单 - 适配后端字段名称
+    packageForm.name = packageData.name || packageData.package?.name || '';
+    packageForm.price = packageData.price || packageData.package?.price || 0;
+    packageForm.durationMinutes = packageData.duration_minutes || packageData.durationMinutes || packageData.package?.duration_minutes || 120;
+    packageForm.description = packageData.description || packageData.package?.description || '';
+    packageForm.isActive = packageData.is_active !== undefined ? packageData.is_active : 
+                           packageData.isActive !== undefined ? packageData.isActive : 
+                           packageData.package?.is_active !== undefined ? packageData.package.is_active : true;
     
-    // 获取关联的商品
-    const productsRes = await getPackageProducts(packageId.value);
-    selectedProducts.value = productsRes.data.products || [];
-    selectedProductIds.value = selectedProducts.value.map(item => item.id);
+    // 直接从with-products接口获取商品信息
+    try {
+      let productsData = [];
+      
+      // 从返回数据中提取商品信息
+      if (packageData.products && Array.isArray(packageData.products)) {
+        // 新接口返回的数据格式
+        productsData = packageData.products;
+      } else if (packageData.products_list && Array.isArray(packageData.products_list)) {
+        productsData = packageData.products_list;
+      }
+      
+      console.log('从详情中提取的商品数据:', productsData);
+      
+      if (productsData.length > 0) {
+        // 处理商品数据
+        selectedProducts.value = productsData.map(product => {
+          return {
+            id: product.id,
+            name: product.name,
+            price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+            imageUrl: product.image_url || product.imageUrl || product.image || ''
+          };
+        });
+        
+        selectedProductIds.value = selectedProducts.value.map(item => item.id);
+      } else {
+        // 如果没有找到商品数据，清空选中的商品
+        selectedProducts.value = [];
+        selectedProductIds.value = [];
+      }
+    } catch (productError) {
+      console.error('处理套餐商品失败:', productError);
+      ElMessage.warning('处理套餐商品失败，请手动选择商品');
+      selectedProducts.value = [];
+      selectedProductIds.value = [];
+    }
   } catch (error) {
     console.error('获取套餐详情失败:', error);
     ElMessage.error('获取套餐详情失败');
+  } finally {
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isDetailRequestLocked.value = false;
+    }, 300);
   }
 };
 
@@ -291,13 +353,16 @@ const submitForm = () => {
     submitting.value = true;
     
     try {
+      // 适配后端API字段名称
       const packageData = {
         name: packageForm.name,
         price: packageForm.price,
-        durationMinutes: packageForm.durationMinutes,
+        duration_minutes: packageForm.durationMinutes, // 使用下划线格式
         description: packageForm.description,
-        isActive: packageForm.isActive
+        is_active: packageForm.isActive // 使用下划线格式
       };
+      
+      console.log('提交的套餐数据:', packageData);
       
       let packageRes;
       
@@ -307,11 +372,11 @@ const submitForm = () => {
       } else {
         // 创建套餐
         packageRes = await createPackage(packageData);
+        
+        // 新增模式下，需要关联商品
+        const newPackageId = packageRes.data.id;
+        await associatePackageProducts(newPackageId, selectedProductIds.value);
       }
-      
-      // 关联商品
-      const newPackageId = isEdit.value ? packageId.value : packageRes.data.id;
-      await associatePackageProducts(newPackageId, selectedProductIds.value);
       
       ElMessage.success(isEdit.value ? '更新套餐成功' : '创建套餐成功');
       router.push('/package/list');
@@ -339,39 +404,120 @@ const resetForm = () => {
 const showProductSelector = () => {
   productSelectorVisible.value = true;
   tempSelectedProducts.value = [...selectedProducts.value];
-  getProducts();
+  getProducts().then(() => {
+    // 在商品加载完成后，设置默认选中的行
+    nextTick(() => {
+      if (productTableRef.value && selectedProductIds.value.length > 0) {
+        // 遍历商品列表，选中已有的商品
+        products.value.forEach(product => {
+          if (selectedProductIds.value.includes(product.id)) {
+            productTableRef.value.toggleRowSelection(product, true);
+          }
+        });
+      }
+    });
+  });
 };
 
 // 获取商品列表
 const getProducts = async () => {
+  // 如果请求已被锁定，则跳过
+  if (isProductsRequestLocked.value) {
+    console.log('获取商品列表请求被锁定，跳过此次请求');
+    return Promise.resolve();
+  }
+  
+  // 锁定请求
+  isProductsRequestLocked.value = true;
   productsLoading.value = true;
   
   try {
     const res = await getProductList(productQueryParams);
-    products.value = res.data.list;
-    productTotal.value = res.data.total;
+    console.log('商品列表原始数据:', res.data);
     
-    // 设置已选中的商品
-    products.value.forEach(product => {
-      if (selectedProductIds.value.includes(product.id)) {
-        product.selected = true;
-      }
-    });
+    // 处理商品列表数据
+    if (res.data && res.data.list && Array.isArray(res.data.list)) {
+      products.value = res.data.list.map(product => {
+        return {
+          id: product.id,
+          name: product.name,
+          price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+          imageUrl: product.image_url || product.imageUrl || product.image || '',
+          // 检查是否已选中
+          selected: selectedProductIds.value.includes(product.id)
+        };
+      });
+      productTotal.value = res.data.total || products.value.length;
+    } else {
+      products.value = [];
+      productTotal.value = 0;
+    }
+    return Promise.resolve();
   } catch (error) {
     console.error('获取商品列表失败:', error);
     ElMessage.error('获取商品列表失败');
+    return Promise.reject(error);
   } finally {
     productsLoading.value = false;
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isProductsRequestLocked.value = false;
+    }, 300);
   }
 };
 
 // 获取分类列表
 const getCategories = async () => {
+  // 如果请求已被锁定，则跳过
+  if (isCategoriesRequestLocked.value) {
+    console.log('获取分类列表请求被锁定，跳过此次请求');
+    return;
+  }
+  
+  // 锁定请求
+  isCategoriesRequestLocked.value = true;
+  
   try {
     const res = await getCategoryList({ pageSize: 100 });
-    categories.value = res.data.list;
+    console.log('分类列表原始数据:', res.data);
+    
+    // 处理分类数据
+    if (res.data && res.data.list && Array.isArray(res.data.list)) {
+      categories.value = res.data.list.map(category => {
+        return {
+          id: category.id,
+          name: category.name
+        };
+      });
+    } else if (res.data && typeof res.data === 'object') {
+      // 尝试从对象中提取分类数据
+      const extractedCategories = [];
+      for (const key in res.data) {
+        if (!isNaN(parseInt(key)) || key === 'list') {
+          const item = res.data[key];
+          if (item && typeof item === 'object' && item.name) {
+            extractedCategories.push({
+              id: item.id || parseInt(key),
+              name: item.name
+            });
+          }
+        }
+      }
+      
+      if (extractedCategories.length > 0) {
+        categories.value = extractedCategories;
+      }
+    } else {
+      categories.value = [];
+    }
   } catch (error) {
     console.error('获取分类列表失败:', error);
+    ElMessage.warning('获取分类列表失败');
+  } finally {
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isCategoriesRequestLocked.value = false;
+    }, 300);
   }
 };
 
@@ -400,22 +546,77 @@ const handleSelectionChange = (selection) => {
 };
 
 // 确认选择商品
-const confirmSelectProducts = () => {
-  selectedProducts.value = [...tempSelectedProducts.value];
-  selectedProductIds.value = selectedProducts.value.map(item => item.id);
+const confirmSelectProducts = async () => {
+  const newSelectedProducts = [...tempSelectedProducts.value];
+  const newSelectedProductIds = newSelectedProducts.map(item => item.id);
+  
+  if (isEdit.value) {
+    // 编辑模式下，通过API关联商品
+    try {
+      await associatePackageProducts(packageId.value, newSelectedProductIds);
+      ElMessage.success('商品关联更新成功');
+      // 更新本地数据
+      selectedProducts.value = newSelectedProducts;
+      selectedProductIds.value = newSelectedProductIds;
+    } catch (error) {
+      console.error('更新关联商品失败:', error);
+      ElMessage.error('更新关联商品失败');
+    }
+  } else {
+    // 新增模式下，仅更新本地数据
+    selectedProducts.value = newSelectedProducts;
+    selectedProductIds.value = newSelectedProductIds;
+  }
+  
   productSelectorVisible.value = false;
 };
 
 // 移除商品
 const removeProduct = (index) => {
-  selectedProducts.value.splice(index, 1);
-  selectedProductIds.value = selectedProducts.value.map(item => item.id);
+  const product = selectedProducts.value[index];
+  
+  if (isEdit.value) {
+    // 编辑模式下，通过API移除商品
+    ElMessageBox.confirm(`确定要将商品"${product.name}"从套餐中移除吗?`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }).then(async () => {
+      try {
+        await removeProductFromPackage(packageId.value, product.id);
+        ElMessage.success('商品移除成功');
+        // 更新本地数据
+        selectedProducts.value.splice(index, 1);
+        selectedProductIds.value = selectedProducts.value.map(item => item.id);
+      } catch (error) {
+        console.error('移除商品失败:', error);
+        ElMessage.error('移除商品失败');
+      }
+    }).catch(() => {});
+  } else {
+    // 新增模式下，直接从本地数据中移除
+    selectedProducts.value.splice(index, 1);
+    selectedProductIds.value = selectedProducts.value.map(item => item.id);
+  }
 };
 
 // 初始化
 onMounted(() => {
+  console.log('套餐编辑页面挂载');
+  isInitialized.value = true;
   getDetail();
   getCategories();
+});
+
+// 当页面被激活时（从缓存中恢复）重新获取数据
+onActivated(() => {
+  console.log('套餐编辑页面激活');
+  if (isInitialized.value) {
+    if (isEdit.value) {
+      getDetail();
+    }
+    getCategories();
+  }
 });
 </script>
 

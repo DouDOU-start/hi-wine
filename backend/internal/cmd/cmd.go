@@ -148,6 +148,9 @@ func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.I
 	group.Bind(controller.AdminPackageAddProducts)
 	group.Bind(controller.AdminPackageRemoveProduct)
 	group.Bind(controller.AdminPackageProductList)
+	group.Bind(controller.AdminPackageDetail)
+	group.Bind(controller.AdminPackageFullDetail)
+	group.Bind(controller.AdminPackageWithProducts)
 
 	// 绑定商品相关接口
 	group.Bind(controller.AdminProductList)
@@ -158,6 +161,7 @@ func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.I
 
 	// 绑定用户套餐相关接口
 	group.Bind(controller.AdminUserPackageList)
+	group.Bind(controller.AdminUserPackageFullDetail)
 
 	// 绑定用户管理相关接口
 	group.Bind(controller.AdminUserList)

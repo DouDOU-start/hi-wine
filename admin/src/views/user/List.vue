@@ -106,9 +106,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onActivated } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getUserList } from '../../api/user';
+
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
+
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
 
 // 加载状态
 const loading = ref(false);
@@ -145,6 +151,8 @@ const currentUser = reactive({
 
 // 获取用户列表
 const fetchUserList = async () => {
+  if (isRequestLocked.value) return;
+  isRequestLocked.value = true;
   loading.value = true;
   try {
     const params = {
@@ -167,6 +175,7 @@ const fetchUserList = async () => {
     ElMessage.error('获取用户列表失败');
   } finally {
     loading.value = false;
+    isRequestLocked.value = false;
   }
 };
 
@@ -238,7 +247,20 @@ const exportUserData = () => {
 
 // 页面加载时获取数据
 onMounted(() => {
-  fetchUserList();
+  console.log('用户列表页面已挂载');
+  if (!isInitialized.value) {
+    fetchUserList();
+    isInitialized.value = true;
+  }
+});
+
+// 当页面从缓存中激活时触发（切换tab时）
+onActivated(() => {
+  console.log('用户列表页面已激活');
+  // 避免重复请求数据
+  if (!isRequestLocked.value) {
+    fetchUserList();
+  }
 });
 </script>
 

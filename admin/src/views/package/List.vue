@@ -39,7 +39,7 @@
         </el-table-column>
         <el-table-column prop="durationMinutes" label="有效时长" width="120">
           <template #default="scope">
-            {{ scope.row.durationMinutes }} 分钟
+            {{ formatDuration(scope.row.durationMinutes || scope.row.duration_minutes || 0) }}
           </template>
         </el-table-column>
         <el-table-column prop="isActive" label="状态" width="100">
@@ -51,7 +51,36 @@
         </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="scope">
-            {{ formatDate(scope.row.createdAt) }}
+            {{ formatDate(scope.row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="更新时间" width="180">
+          <template #default="scope">
+            {{ formatDate(scope.row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="图片" width="100">
+          <template #default="scope">
+            <el-image
+              v-if="scope.row.imageUrl"
+              style="width: 50px; height: 50px"
+              :src="scope.row.imageUrl"
+              :preview-src-list="[scope.row.imageUrl]"
+              fit="cover"
+              @error="() => { scope.row.imageLoadError = true }"
+            >
+              <template #error>
+                <div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f5f7fa; color: #909399; border-radius: 4px;">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div 
+              v-else 
+              style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f5f7fa; color: #909399; border-radius: 4px;"
+            >
+              <el-icon><Picture /></el-icon>
+            </div>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="250" fixed="right">
@@ -103,11 +132,25 @@
         <el-table-column label="图片" width="100">
           <template #default="scope">
             <el-image
+              v-if="scope.row.imageUrl"
               style="width: 50px; height: 50px"
               :src="scope.row.imageUrl"
               :preview-src-list="[scope.row.imageUrl]"
               fit="cover"
-            />
+              @error="() => { scope.row.imageLoadError = true }"
+            >
+              <template #error>
+                <div style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f5f7fa; color: #909399; border-radius: 4px;">
+                  <el-icon><Picture /></el-icon>
+                </div>
+              </template>
+            </el-image>
+            <div 
+              v-else 
+              style="width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; background: #f5f7fa; color: #909399; border-radius: 4px;"
+            >
+              <el-icon><Picture /></el-icon>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -116,12 +159,16 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue';
+import { ref, reactive, onMounted, onActivated } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { getPackageList, deletePackage, getPackageProducts } from '../../api/package';
+import { Picture } from '@element-plus/icons-vue';
 
 const router = useRouter();
+
+// 防止重复请求的锁
+const isRequestLocked = ref(false);
 
 // 查询参数
 const queryParams = reactive({
@@ -142,25 +189,112 @@ const packageProducts = ref([]);
 const productLoading = ref(false);
 const currentPackageId = ref(null);
 
+// 记录页面是否已经初始化
+const isInitialized = ref(false);
+
 // 格式化日期
 const formatDate = (dateString) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}:${String(date.getSeconds()).padStart(2, '0')}`;
+  if (!dateString) return '暂无数据';
+  
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString; // 如果转换失败，返回原始字符串
+    
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    
+    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+  } catch (error) {
+    console.error('日期格式化错误:', error);
+    return dateString; // 发生错误时返回原始字符串
+  }
+};
+
+// 格式化时长
+const formatDuration = (minutes) => {
+  if (!minutes || isNaN(minutes)) return '0 分钟';
+  
+  // 将分钟数转换为数字类型
+  const mins = typeof minutes === 'string' ? parseFloat(minutes) : minutes;
+  
+  if (mins < 60) {
+    // 不足1小时，显示分钟
+    return `${mins} 分钟`;
+  } else {
+    // 超过1小时，显示小时和分钟
+    const hours = Math.floor(mins / 60);
+    const remainingMins = mins % 60;
+    
+    if (remainingMins === 0) {
+      // 整数小时
+      return `${hours} 小时`;
+    } else {
+      // 小时+分钟
+      return `${hours} 小时 ${remainingMins} 分钟`;
+    }
+  }
 };
 
 // 获取套餐列表
 const getList = async () => {
+  // 如果已经在加载中或请求被锁定，则跳过
+  if (loading.value || isRequestLocked.value) {
+    console.log('请求被锁定或正在加载中，跳过此次请求');
+    return;
+  }
+  
+  // 锁定请求，防止短时间内重复调用
+  isRequestLocked.value = true;
   loading.value = true;
+  
   try {
     const res = await getPackageList(queryParams);
-    packageList.value = res.data.list;
-    total.value = res.data.total;
+    console.log('套餐列表原始数据:', res.data);
+    
+    // 处理返回的数据
+    if (res.data && res.data.list && Array.isArray(res.data.list)) {
+      packageList.value = res.data.list.map(item => {
+        // 处理有效时长
+        let durationMins = 0;
+        if (item.duration_minutes !== undefined) {
+          durationMins = item.duration_minutes;
+        } else if (item.durationMinutes !== undefined) {
+          durationMins = item.durationMinutes;
+        } else if (item.duration_hours !== undefined) {
+          durationMins = item.duration_hours * 60;
+        }
+        
+        return {
+          ...item,
+          // 确保isActive字段存在（兼容is_active和isActive两种命名）
+          isActive: item.isActive !== undefined ? item.isActive : (item.is_active !== undefined ? item.is_active : true),
+          // 确保价格是数字类型
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
+          // 确保创建时间和更新时间字段存在
+          created_at: item.created_at || item.createdAt || '',
+          updated_at: item.updated_at || item.updatedAt || '',
+          // 设置处理后的有效时长
+          durationMinutes: durationMins
+        };
+      });
+      total.value = res.data.total || packageList.value.length;
+    } else {
+      packageList.value = [];
+      total.value = 0;
+    }
   } catch (error) {
     console.error('获取套餐列表失败:', error);
     ElMessage.error('获取套餐列表失败');
   } finally {
     loading.value = false;
+    // 延迟解锁，防止短时间内重复请求
+    setTimeout(() => {
+      isRequestLocked.value = false;
+    }, 300);
   }
 };
 
@@ -206,11 +340,69 @@ const handleViewProducts = async (row) => {
   productLoading.value = true;
   
   try {
+    console.log('获取套餐商品，ID:', row.id);
     const res = await getPackageProducts(row.id);
-    packageProducts.value = res.data.products || [];
+    console.log('套餐商品原始数据:', res.data);
+    
+    // 处理返回的数据结构
+    if (res.data.products && Array.isArray(res.data.products)) {
+      // 标准返回格式
+      packageProducts.value = res.data.products.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+        imageUrl: product.image_url || product.imageUrl || product.image || ''
+      }));
+    } else if (res.data.list && Array.isArray(res.data.list)) {
+      // 列表格式
+      packageProducts.value = res.data.list.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+        imageUrl: product.image_url || product.imageUrl || product.image || ''
+      }));
+    } else if (Array.isArray(res.data)) {
+      // 直接返回数组
+      packageProducts.value = res.data.map(product => ({
+        id: product.id,
+        name: product.name,
+        price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+        imageUrl: product.image_url || product.imageUrl || product.image || ''
+      }));
+    } else {
+      // 尝试从对象中提取数据
+      const extractedProducts = [];
+      for (const key in res.data) {
+        if (res.data[key] && typeof res.data[key] === 'object' && !Array.isArray(res.data[key])) {
+          const product = res.data[key];
+          if (product.id && product.name) {
+            extractedProducts.push({
+              id: product.id,
+              name: product.name,
+              price: typeof product.price === 'number' ? product.price : parseFloat(product.price || '0'),
+              imageUrl: product.image_url || product.imageUrl || product.image || ''
+            });
+          }
+        }
+      }
+      
+      if (extractedProducts.length > 0) {
+        packageProducts.value = extractedProducts;
+      } else {
+        packageProducts.value = [];
+        console.warn('未找到有效的商品数据');
+      }
+    }
+    
+    console.log('处理后的商品数据:', packageProducts.value);
+    
+    if (packageProducts.value.length === 0) {
+      ElMessage.info('该套餐暂无关联商品');
+    }
   } catch (error) {
     console.error('获取套餐商品失败:', error);
     ElMessage.error('获取套餐商品失败');
+    packageProducts.value = [];
   } finally {
     productLoading.value = false;
   }
@@ -236,7 +428,17 @@ const handleDelete = (row) => {
 
 // 初始化
 onMounted(() => {
+  console.log('套餐列表页面挂载');
+  isInitialized.value = true;
   getList();
+});
+
+// 当页面被激活时（从缓存中恢复）重新加载数据
+onActivated(() => {
+  console.log('套餐列表页面激活');
+  if (isInitialized.value) {
+    getList();
+  }
 });
 </script>
 

@@ -113,3 +113,24 @@ func (c *ControllerV1) AdminUserActivePackages(ctx context.Context, req *v1.Admi
 
 	return res, nil
 }
+
+// AdminUserPackageFullDetail 获取用户套餐详细信息（包含用户信息、套餐信息和使用情况）
+func (c *ControllerV1) AdminUserPackageFullDetail(ctx context.Context, req *v1.AdminUserPackageFullDetailReq) (res *v1.AdminUserPackageFullDetailRes, err error) {
+	// 创建响应对象
+	res = &v1.AdminUserPackageFullDetailRes{}
+
+	// 调用服务获取用户套餐详细信息
+	detail, err := service.UserPackage().GetUserPackageFullDetail(ctx, req.UserPackageID)
+	if err != nil {
+		res.Code = common.CodeServerError
+		res.Message = err.Error()
+		return res, nil
+	}
+
+	// 设置响应数据
+	res.Code = common.CodeSuccess
+	res.Message = "获取用户套餐详细信息成功"
+	res.Data = *detail
+
+	return res, nil
+}
