@@ -2,15 +2,16 @@ package service
 
 import (
 	"context"
-	"time"
 
 	v1 "backend/api/admin/v1"
 	productv1 "backend/api/product/v1"
 	"backend/internal/dao"
 	"backend/internal/model"
+	"backend/internal/utility"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 )
 
 // Category 分类服务
@@ -33,8 +34,8 @@ func (s *Category) List(ctx context.Context, req *v1.AdminCategoryListReq) (list
 			Name:      category.Name,
 			SortOrder: category.SortOrder,
 			IsActive:  category.IsActive,
-			CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt: utility.FormatStdTimeOrEmpty(category.CreatedAt),
+			UpdatedAt: utility.FormatStdTimeOrEmpty(category.UpdatedAt),
 		}
 	}
 
@@ -57,8 +58,8 @@ func (s *Category) GetByID(ctx context.Context, id int64) (*v1.AdminCategory, er
 		Name:      category.Name,
 		SortOrder: category.SortOrder,
 		IsActive:  category.IsActive,
-		CreatedAt: category.CreatedAt.Format("2006-01-02 15:04:05"),
-		UpdatedAt: category.UpdatedAt.Format("2006-01-02 15:04:05"),
+		CreatedAt: utility.FormatStdTimeOrEmpty(category.CreatedAt),
+		UpdatedAt: utility.FormatStdTimeOrEmpty(category.UpdatedAt),
 	}, nil
 }
 
@@ -76,12 +77,13 @@ func (s *Category) Create(ctx context.Context, req *v1.AdminCreateCategoryReq) (
 	}
 
 	// 创建模型
+	now := gtime.Now()
 	category := &model.Category{
 		Name:      req.Name,
 		SortOrder: req.SortOrder,
 		IsActive:  req.IsActive,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		CreatedAt: now.Time,
+		UpdatedAt: now.Time,
 	}
 
 	// 默认值处理
@@ -135,7 +137,7 @@ func (s *Category) Update(ctx context.Context, req *v1.AdminUpdateCategoryReq) (
 		data["sort_order"] = req.SortOrder
 	}
 	data["is_active"] = req.IsActive
-	data["updated_at"] = time.Now()
+	data["updated_at"] = gtime.Now().Time
 
 	// 更新数据
 	if err := categoryDao.Update(ctx, req.ID, data); err != nil {

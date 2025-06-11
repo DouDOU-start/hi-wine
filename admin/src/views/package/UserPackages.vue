@@ -47,16 +47,16 @@
               <el-avatar :size="40" :src="scope.row.avatar_url || ''" />
               <div class="user-detail">
                 <div>{{ scope.row.userName || '未知用户' }}</div>
-                <div class="user-phone">{{ scope.row.user_phone || '未绑定手机' }}</div>
+                <div class="user-phone">{{ scope.row.userPhone || '未绑定手机' }}</div>
               </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="package_name" label="套餐名称" min-width="150" />
+        <el-table-column prop="packageName" label="套餐名称" min-width="150" />
         <el-table-column label="有效期" width="280">
           <template #default="scope">
-            <div>开始: {{ formatDate(scope.row.start_time || scope.row.created_at) }}</div>
-            <div>结束: {{ formatDate(scope.row.end_time) }}</div>
+            <div>开始: {{ formatDate(scope.row.startTime) }}</div>
+            <div>结束: {{ formatDate(scope.row.endTime) }}</div>
             <div v-if="scope.row.status === 'active'" class="remaining-time">
               <el-tag size="small" effect="plain" type="success">
                 剩余: {{ scope.row.remaining_days || 0 }} 天
@@ -76,17 +76,17 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="订单信息" width="150">
+        <el-table-column label="订单信息" width="160">
           <template #default="scope">
-            <div v-if="scope.row.order_sn">
-              <div class="order-info">订单号: {{ scope.row.order_sn }}</div>
+            <div v-if="scope.row.orderSn">
+              <div class="order-info">订单号: {{ scope.row.orderSn }}</div>
             </div>
             <div v-else>-</div>
           </template>
         </el-table-column>
         <el-table-column label="创建时间" width="180">
           <template #default="scope">
-            {{ formatDate(scope.row.created_at) }}
+            {{ formatDate(scope.row.createdAt) }}
           </template>
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
@@ -139,9 +139,9 @@
           <h3 class="section-title">基本信息</h3>
           <el-descriptions :column="2" border>
             <el-descriptions-item label="套餐ID">{{ packageDetail.id }}</el-descriptions-item>
-            <el-descriptions-item label="套餐名称">{{ packageDetail.package_name }}</el-descriptions-item>
+            <el-descriptions-item label="套餐名称">{{ packageDetail.packageName }}</el-descriptions-item>
             <el-descriptions-item label="用户昵称">{{ packageDetail.userName || '未知用户' }}</el-descriptions-item>
-            <el-descriptions-item label="用户手机">{{ packageDetail.user_phone || '未绑定手机' }}</el-descriptions-item>
+            <el-descriptions-item label="用户手机">{{ packageDetail.userPhone || '未绑定手机' }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag :type="getStatusType(packageDetail.status)">
                 {{ getStatusText(packageDetail.status) }}
@@ -149,12 +149,12 @@
             </el-descriptions-item>
             <el-descriptions-item label="有效期">
               <el-tag size="small" effect="plain" :type="getStatusType(packageDetail.status)">
-                {{ packageDetail.valid_period || '未知' }}
+                {{ packageDetail.validPeriod || '未知' }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="开始时间">{{ formatDate(packageDetail.start_time) }}</el-descriptions-item>
-            <el-descriptions-item label="结束时间">{{ formatDate(packageDetail.end_time) }}</el-descriptions-item>
-            <el-descriptions-item label="创建时间">{{ formatDate(packageDetail.created_at) }}</el-descriptions-item>
+            <el-descriptions-item label="开始时间">{{ formatDate(packageDetail.startTime) }}</el-descriptions-item>
+            <el-descriptions-item label="结束时间">{{ formatDate(packageDetail.endTime) }}</el-descriptions-item>
+            <el-descriptions-item label="创建时间">{{ formatDate(packageDetail.createdAt) }}</el-descriptions-item>
           </el-descriptions>
         </div>
 
@@ -162,7 +162,7 @@
         <div v-if="packageDetail.order_sn" class="detail-section">
           <h3 class="section-title">订单信息</h3>
           <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="订单号">{{ packageDetail.order_sn || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="订单号">{{ packageDetail.orderSn || '-' }}</el-descriptions-item>
             <el-descriptions-item label="支付状态">
               <el-tag size="small" :type="packageDetail.order_status === 'paid' ? 'success' : 'warning'">
                 {{ packageDetail.order_status === 'paid' ? '已支付' : '未支付' }}
@@ -179,7 +179,7 @@
         <div v-if="packageDetail.package_name" class="detail-section">
           <h3 class="section-title">套餐详情</h3>
           <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="套餐名称">{{ packageDetail.package_name || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="套餐名称">{{ packageDetail.packageName || '-' }}</el-descriptions-item>
             <el-descriptions-item label="套餐价格">
               <span class="price-value">¥{{ packageDetail.package_price || 0 }}</span>
             </el-descriptions-item>
@@ -268,49 +268,49 @@ const getStatusType = (status) => {
 };
 
 // 处理列表数据
-const processListItem = (item) => {
-  if (!item) return {};
+// const processListItem = (item) => {
+//   if (!item) return {};
   
-  // 创建副本，避免直接修改原始数据
-  const result = {...item};
+//   // 创建副本，避免直接修改原始数据
+//   const result = {...item};
   
-  // 处理时间格式
-  if (!result.start_time && result.created_at) {
-    result.start_time = result.created_at;
-  }
+//   // 处理时间格式
+//   if (!result.start_time && result.created_at) {
+//     result.start_time = result.created_at;
+//   }
   
-  // 处理状态描述
-  if (!result.status_desc && result.status) {
-    result.status_desc = getStatusText(result.status);
-  }
+//   // 处理状态描述
+//   if (!result.status_desc && result.status) {
+//     result.status_desc = getStatusText(result.status);
+//   }
   
-  // 确保用户信息字段存在
-  result.user_name = result.user_name || result.username || result.nickname || '未知用户';
-  result.user_phone = result.user_phone || result.phone || result.userPhone || '未绑定手机';
-  result.avatar_url = result.avatar_url || result.avatarUrl || '';
+//   // 确保用户信息字段存在
+//   result.userName = result.userName || '未知用户';
+//   result.userPhone = result.userPhone || '未绑定手机';
+//   // result.avatar_url = result.avatar_url || result.avatarUrl || '';
   
-  // 确保套餐信息字段存在
-  result.package_name = result.package_name || result.packageName || '未知套餐';
+//   // 确保套餐信息字段存在
+//   // result.package_name = result.package_name || result.packageName || '未知套餐';
   
-  // 确保日期字段格式一致
-  result.created_at = result.created_at || result.createdAt || '';
-  result.end_time = result.end_time || result.endTime || '';
+//   // 确保日期字段格式一致
+//   // result.created_at = result.created_at || result.createdAt || '';
+//   // result.end_time = result.end_time || result.endTime || '';
   
-  // 计算剩余天数
-  if (!result.remaining_days && result.end_time) {
-    try {
-      const endDate = new Date(result.end_time);
-      const today = new Date();
-      const diffTime = endDate - today;
-      result.remaining_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      if (result.remaining_days < 0) result.remaining_days = 0;
-    } catch (e) {
-      result.remaining_days = 0;
-    }
-  }
+//   // 计算剩余天数
+//   if (!result.remaining_days && result.end_time) {
+//     try {
+//       const endDate = new Date(result.end_time);
+//       const today = new Date();
+//       const diffTime = endDate - today;
+//       result.remaining_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+//       if (result.remaining_days < 0) result.remaining_days = 0;
+//     } catch (e) {
+//       result.remaining_days = 0;
+//     }
+//   }
   
-  return result;
-};
+//   return result;
+// };
 
 // 获取用户套餐列表
 const getList = async () => {
@@ -350,14 +350,18 @@ const getList = async () => {
     }
     
     // 处理每一项
+    // userPackageList.value = list.map(item => {
+    //   const processed = processListItem(item);
+    //   console.log('单项处理前:', item);
+    //   console.log('单项处理后:', processed);
+    //   return processed;
+    // });
     userPackageList.value = list.map(item => {
-      const processed = processListItem(item);
-      console.log('单项处理前:', item);
-      console.log('单项处理后:', processed);
-      return processed;
+      // 直接返回原始数据，假设API已经处理好
+      return item;
     });
     
-    console.log('处理后的最终列表数据:', userPackageList.value);
+    // console.log('处理后的最终列表数据:', userPackageList.value);
     
   } catch (error) {
     ElMessage.error('获取用户套餐列表失败');
@@ -445,7 +449,8 @@ const handleViewDetail = async (row) => {
   
   try {
     const response = await getUserPackageDetail(row.id);
-    packageDetail.value = processListItem(response.data || {});
+    // packageDetail.value = processListItem(response.data || {});
+    packageDetail.value = response.data || {};
   } catch (error) {
     ElMessage.error('获取套餐详情失败');
     console.error('获取套餐详情错误:', error);

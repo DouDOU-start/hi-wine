@@ -217,10 +217,10 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 
 		// 时间处理
 		if item.StartTime != nil {
-			adminUserPackage.StartTime = item.StartTime.Format("2006-01-02 15:04:05")
+			adminUserPackage.StartTime = utility.FormatTimeOrEmpty(item.StartTime)
 		}
 		if item.EndTime != nil {
-			adminUserPackage.EndTime = item.EndTime.Format("2006-01-02 15:04:05")
+			adminUserPackage.EndTime = utility.FormatTimeOrEmpty(item.EndTime)
 
 			// 计算有效期描述
 			if item.StartTime != nil && item.Status == consts.PackageStatusActive {
@@ -248,8 +248,8 @@ func (s *userPackageService) GetUserPackageList(ctx context.Context, req *v1.Adm
 			adminUserPackage.ValidPeriod = "-"
 		}
 
-		adminUserPackage.CreatedAt = item.CreatedAt.Format("2006-01-02 15:04:05")
-		adminUserPackage.UpdatedAt = item.UpdatedAt.Format("2006-01-02 15:04:05")
+		adminUserPackage.CreatedAt = utility.FormatTimeOrEmpty(item.CreatedAt)
+		adminUserPackage.UpdatedAt = utility.FormatTimeOrEmpty(item.UpdatedAt)
 
 		list = append(list, adminUserPackage)
 	}
@@ -326,10 +326,10 @@ func (s *userPackageService) GetUserPackageDetail(ctx context.Context, id int64)
 
 	// 时间处理
 	if joinedUserPackage.StartTime != nil {
-		detail.StartTime = joinedUserPackage.StartTime.Format("2006-01-02 15:04:05")
+		detail.StartTime = utility.FormatTimeOrEmpty(joinedUserPackage.StartTime)
 	}
 	if joinedUserPackage.EndTime != nil {
-		detail.EndTime = joinedUserPackage.EndTime.Format("2006-01-02 15:04:05")
+		detail.EndTime = utility.FormatTimeOrEmpty(joinedUserPackage.EndTime)
 
 		// 计算有效期描述
 		if joinedUserPackage.StartTime != nil && joinedUserPackage.Status == consts.PackageStatusActive {
@@ -357,8 +357,8 @@ func (s *userPackageService) GetUserPackageDetail(ctx context.Context, id int64)
 		detail.ValidPeriod = "-"
 	}
 
-	detail.CreatedAt = joinedUserPackage.CreatedAt.Format("2006-01-02 15:04:05")
-	detail.UpdatedAt = joinedUserPackage.UpdatedAt.Format("2006-01-02 15:04:05")
+	detail.CreatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.CreatedAt)
+	detail.UpdatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.UpdatedAt)
 
 	return detail, nil
 }
@@ -492,10 +492,10 @@ func (s *userPackageService) CreateUserPackage(ctx context.Context, req *v1.Admi
 
 		// 时间处理
 		if joinedUserPackage.StartTime != nil {
-			detail.StartTime = joinedUserPackage.StartTime.Format("2006-01-02 15:04:05")
+			detail.StartTime = utility.FormatTimeOrEmpty(joinedUserPackage.StartTime)
 		}
 		if joinedUserPackage.EndTime != nil {
-			detail.EndTime = joinedUserPackage.EndTime.Format("2006-01-02 15:04:05")
+			detail.EndTime = utility.FormatTimeOrEmpty(joinedUserPackage.EndTime)
 
 			// 计算有效期描述
 			if joinedUserPackage.StartTime != nil && joinedUserPackage.Status == consts.PackageStatusActive {
@@ -523,8 +523,8 @@ func (s *userPackageService) CreateUserPackage(ctx context.Context, req *v1.Admi
 			detail.ValidPeriod = "-"
 		}
 
-		detail.CreatedAt = joinedUserPackage.CreatedAt.Format("2006-01-02 15:04:05")
-		detail.UpdatedAt = joinedUserPackage.UpdatedAt.Format("2006-01-02 15:04:05")
+		detail.CreatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.CreatedAt)
+		detail.UpdatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.UpdatedAt)
 
 		return nil
 	})
@@ -640,10 +640,10 @@ func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v
 
 		// 时间处理
 		if joinedUserPackage.StartTime != nil {
-			detail.StartTime = joinedUserPackage.StartTime.Format("2006-01-02 15:04:05")
+			detail.StartTime = utility.FormatTimeOrEmpty(joinedUserPackage.StartTime)
 		}
 		if joinedUserPackage.EndTime != nil {
-			detail.EndTime = joinedUserPackage.EndTime.Format("2006-01-02 15:04:05")
+			detail.EndTime = utility.FormatTimeOrEmpty(joinedUserPackage.EndTime)
 
 			// 计算有效期描述
 			if joinedUserPackage.StartTime != nil && joinedUserPackage.Status == consts.PackageStatusActive {
@@ -671,8 +671,8 @@ func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v
 			detail.ValidPeriod = "-"
 		}
 
-		detail.CreatedAt = joinedUserPackage.CreatedAt.Format("2006-01-02 15:04:05")
-		detail.UpdatedAt = joinedUserPackage.UpdatedAt.Format("2006-01-02 15:04:05")
+		detail.CreatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.CreatedAt)
+		detail.UpdatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.UpdatedAt)
 
 		return nil
 	})
@@ -1040,13 +1040,13 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 	detail.PackageID = int64(userPackage.PackageId)
 	detail.OrderID = int64(userPackage.OrderId)
 	detail.Status = userPackage.Status
-	detail.CreatedAt = userPackage.CreatedAt.Format("2006-01-02 15:04:05")
-	detail.UpdatedAt = userPackage.UpdatedAt.Format("2006-01-02 15:04:05")
+	detail.CreatedAt = utility.FormatTimeOrEmpty(userPackage.CreatedAt)
+	detail.UpdatedAt = utility.FormatTimeOrEmpty(userPackage.UpdatedAt)
 	if userPackage.StartTime != nil {
-		detail.StartTime = userPackage.StartTime.Format("2006-01-02 15:04:05")
+		detail.StartTime = utility.FormatTimeOrEmpty(userPackage.StartTime)
 	}
 	if userPackage.EndTime != nil {
-		detail.EndTime = userPackage.EndTime.Format("2006-01-02 15:04:05")
+		detail.EndTime = utility.FormatTimeOrEmpty(userPackage.EndTime)
 	}
 
 	// 查询用户信息
@@ -1102,7 +1102,7 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 			detail.Order.TotalFee = order.TotalAmount
 			detail.Order.PayStatus = order.PaymentStatus
 			if order.PaidAt != nil {
-				detail.Order.PayTime = order.PaidAt.Format("2006-01-02 15:04:05")
+				detail.Order.PayTime = utility.FormatTimeOrEmpty(order.PaidAt)
 			}
 		}
 	}
@@ -1175,7 +1175,7 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 	} else {
 		detail.Usage.TotalUsedTimes = usageRecord.TotalUsedTimes
 		if usageRecord.LastUsedTime != nil {
-			detail.Usage.LastUsedTime = usageRecord.LastUsedTime.Format("2006-01-02 15:04:05")
+			detail.Usage.LastUsedTime = utility.FormatTimeOrEmpty(usageRecord.LastUsedTime)
 		}
 	}
 
