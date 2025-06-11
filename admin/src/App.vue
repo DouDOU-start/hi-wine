@@ -4,17 +4,17 @@
   </div>
 </template>
 
-<style>
-body {
-  margin: 0;
-  padding: 0;
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', Arial, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+<script setup>
+import { onMounted } from 'vue';
+import { useThemeStore } from './stores/theme';
 
-.app-container {
-  width: 100%;
-  height: 100vh;
-}
+// 初始化主题
+onMounted(() => {
+  const themeStore = useThemeStore();
+  themeStore.initTheme();
+});
+</script>
+
+<style>
+/* 全局样式已移至 assets/css/main.css */
 </style> 

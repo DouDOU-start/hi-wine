@@ -1,0 +1,75 @@
+/* 明亮主题 - 默认 */
+.light-theme {
+  --bg-color: #f5f7fa;
+  --text-color: #303133;
+  --border-color: #dcdfe6;
+  --header-bg: #ffffff;
+  --sidebar-bg: #304156;
+  --sidebar-text: #bfcbd9;
+  --sidebar-active: #409EFF;
+  --card-bg: #ffffff;
+  --hover-bg: #f5f7fa;
+}
+
+/* 暗黑主题 */
+.dark-theme {
+  --bg-color: #1e1e1e;
+  --text-color: #e0e0e0;
+  --border-color: #4c4c4c;
+  --header-bg: #252525;
+  --sidebar-bg: #1a1a1a;
+  --sidebar-text: #a0a0a0;
+  --sidebar-active: #409EFF;
+  --card-bg: #252525;
+  --hover-bg: #2c2c2c;
+}
+
+/* 应用主题变量 */
+body {
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+
+.el-card {
+  background-color: var(--card-bg);
+  border-color: var(--border-color);
+}
+
+.navbar {
+  background-color: var(--header-bg) !important;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-container {
+  background-color: var(--sidebar-bg) !important;
+}
+
+/* 暗黑模式下的表格样式调整 */
+.dark-theme .el-table {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+.dark-theme .el-table th,
+.dark-theme .el-table tr {
+  background-color: var(--card-bg);
+}
+
+.dark-theme .el-table td,
+.dark-theme .el-table th.is-leaf {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.dark-theme .el-table--border::after,
+.dark-theme .el-table--border::before,
+.dark-theme .el-table--border .el-table__inner-wrapper::after {
+  background-color: var(--border-color);
+}
+
+.dark-theme .el-table--striped .el-table__body tr.el-table__row--striped td {
+  background-color: var(--hover-bg);
+}
+
+.dark-theme .el-table__body tr.hover-row > td {
+  background-color: var(--hover-bg) !important;
+} 

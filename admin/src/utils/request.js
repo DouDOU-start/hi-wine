@@ -52,6 +52,14 @@ service.interceptors.response.use(
     }
     
     const res = response.data;
+    console.log('原始响应数据:', res);
+    
+    // 处理不同的响应格式
+    // 如果没有code字段或者code字段不是数字，可能是直接返回的数据
+    if (res === null || typeof res !== 'object' || typeof res.code === 'undefined') {
+      console.log('直接返回数据:', res);
+      return { code: 200, data: res, message: 'success' };
+    }
     
     // 如果响应码不为200，则表示有错误
     if (res.code !== 200) {
@@ -70,9 +78,14 @@ service.interceptors.response.use(
     } else {
       // 将整个响应数据从下划线格式转换为驼峰格式
       if (res && typeof res === 'object') {
-        // 先转换res.data
-        if (res.data && typeof res.data === 'object') {
-          res.data = toCamelCase(res.data);
+        try {
+          // 先转换res.data
+          if (res.data && typeof res.data === 'object') {
+            res.data = toCamelCase(res.data);
+            console.log('转换后的响应数据:', res);
+          }
+        } catch (error) {
+          console.error('数据转换错误:', error);
         }
       }
       return res;

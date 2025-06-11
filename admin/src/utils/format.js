@@ -63,15 +63,19 @@ export function toCamelCase(obj) {
   if (typeof obj !== 'object' || obj === null) return obj;
   
   if (Array.isArray(obj)) {
+    console.log('转换数组:', obj);
     return obj.map(item => toCamelCase(item));
   }
   
-  return Object.fromEntries(
+  console.log('转换对象:', obj);
+  const result = Object.fromEntries(
     Object.entries(obj).map(([key, value]) => [
       key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()),
       toCamelCase(value)
     ])
   );
+  console.log('转换结果:', result);
+  return result;
 }
 
 /**

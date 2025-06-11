@@ -42,6 +42,11 @@ export function createApi(baseUrl, options = {}) {
     // 删除
     delete(id) {
       return del(`${baseUrl}/${id}`);
+    },
+    
+    // 批量删除
+    batchDelete(ids) {
+      return post(`${baseUrl}/batch-delete`, { ids });
     }
   };
 

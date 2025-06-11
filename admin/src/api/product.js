@@ -13,7 +13,8 @@ export const {
   create: addProduct,
   update: updateProduct,
   delete: deleteProduct,
-  batchUpdate: batchUpdateProductStatus
+  batchUpdate: batchUpdateProductStatus,
+  batchDelete
 } = productApi;
 
 // 上下架商品

@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import { getToken, getAdminInfo, setAdminInfo } from '../utils/auth';
-import { getAdminInfo as fetchAdminInfo } from '../api/user';
+import { getToken } from '../utils/auth';
 import { ElMessage } from 'element-plus';
+import { useUserStore } from '../stores/user';
 
 // 导入路由模块
 import dashboardRoutes from './modules/dashboard';
@@ -47,31 +47,37 @@ router.beforeEach(async (to, from, next) => {
       return;
     }
     
-    // 检查是否有管理员信息
-    const adminInfo = getAdminInfo();
-    if (!adminInfo) {
+    // 获取用户状态
+    const userStore = useUserStore();
+    
+    // 如果用户未登录，尝试初始化用户信息
+    if (!userStore.isLoggedIn) {
       try {
         // 尝试获取管理员信息
-        const response = await fetchAdminInfo();
-        if (response.data) {
-          // 存储管理员信息
-          setAdminInfo(response.data);
-          next();
-        } else {
-          // 没有管理员信息，可能token已失效
+        const success = await userStore.initUserInfo();
+        if (!success) {
+          // 获取用户信息失败，可能是token已失效
           ElMessage.error('登录已过期，请重新登录');
           next({ path: '/login', query: { redirect: to.fullPath } });
+          return;
         }
       } catch (error) {
         console.error('获取管理员信息失败:', error);
         // 获取管理员信息失败，可能是token无效
         ElMessage.error('登录已过期，请重新登录');
         next({ path: '/login', query: { redirect: to.fullPath } });
+        return;
       }
-    } else {
-      // 有管理员信息，直接通过
-      next();
     }
+    
+    // 检查路由权限
+    if (to.meta.permission && !userStore.hasPermission(to.meta.permission)) {
+      next({ path: '/403' });
+      return;
+    }
+    
+    // 有用户信息，直接通过
+    next();
   } else {
     // 不需要认证的路由，直接通过
     next();
