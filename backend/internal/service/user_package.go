@@ -4,9 +4,11 @@ import (
 	v1 "backend/api/admin/v1"
 	userv1 "backend/api/user/v1"
 	"backend/internal/consts"
+	"backend/internal/dao"
 	"backend/internal/model/entity"
 	"backend/internal/utility"
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
@@ -537,142 +539,75 @@ func (s *userPackageService) CreateUserPackage(ctx context.Context, req *v1.Admi
 }
 
 // UpdateUserPackageStatus 更新用户套餐状态
-func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v1.AdminUserPackageUpdateStatusReq) (detail *v1.AdminUserPackage, err error) {
-	// 开启事务
-	err = g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		// 查询用户套餐
+func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v1.AdminUserPackageUpdateStatusReq) (*v1.AdminUserPackage, error) {
+	// 1. 开启事务
+	err := g.DB().Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		// 2. 查询并锁定用户套餐记录
 		var userPackage entity.UserPackages
-		err = tx.Model("user_packages").Where("id", req.UserPackageID).Scan(&userPackage)
+		sqlTx := tx.GetSqlTX()
+		err := sqlTx.QueryRowContext(ctx, "SELECT * FROM `user_packages` WHERE `id` = ? FOR UPDATE", req.UserPackageID).Scan(
+			&userPackage.Id, &userPackage.UserId, &userPackage.PackageId, &userPackage.OrderId, &userPackage.StartTime, &userPackage.EndTime, &userPackage.Status, &userPackage.CreatedAt, &userPackage.UpdatedAt,
+		)
 		if err != nil {
+			if err == sql.ErrNoRows {
+				return gerror.New("用户套餐不存在")
+			}
+			g.Log().Errorf(ctx, "查询用户套餐失败: %v", err)
 			return err
 		}
-		if userPackage.Id == 0 {
-			return gerror.New("用户套餐不存在")
+
+		// 3. 检查状态是否允许变更 (可以根据业务逻辑添加更复杂的校验)
+		// 例如：已过期的套餐不能再改为激活状态
+		if userPackage.Status == consts.PackageStatusExpired && req.Status == consts.PackageStatusActive {
+			return gerror.New("已过期的套餐不能被激活")
+		}
+		// 如果状态没有变化，则直接返回
+		if userPackage.Status == req.Status {
+			return nil // 不需要更新
 		}
 
-		// 检查状态变更是否合法
-		if !s.isValidStatusChange(userPackage.Status, req.Status) {
-			return gerror.Newf("无效的状态变更: %s -> %s", userPackage.Status, req.Status)
-		}
-
-		// 准备更新数据
+		// 4. 更新状态
 		updateData := g.Map{
 			"status":     req.Status,
 			"updated_at": gtime.Now(),
 		}
 
-		// 如果状态变更为激活，且没有开始时间，则设置开始时间
-		if req.Status == consts.PackageStatusActive && userPackage.StartTime == nil {
-			// 查询套餐信息
-			var packageInfo entity.DrinkAllYouCanPackages
-			err = tx.Model("drink_all_you_can_packages").Where("id", userPackage.PackageId).Scan(&packageInfo)
-			if err != nil {
-				return err
-			}
-
-			// 设置开始时间和结束时间
-			now := gtime.Now()
-			updateData["start_time"] = now
-			updateData["end_time"] = gtime.NewFromTime(now.Time.Add(time.Minute * time.Duration(packageInfo.DurationMinutes)))
-		}
-
-		// 更新记录
-		_, err = tx.Model("user_packages").Where("id", req.UserPackageID).Data(updateData).Update()
-		if err != nil {
-			return err
-		}
-
-		// 查询更新后的套餐详细信息（包含关联数据）
-		type JoinedUserPackage struct {
-			entity.UserPackages
-			Nickname        string  `json:"nickname"`
-			Phone           string  `json:"phone"`
-			PackageName     string  `json:"package_name"`
-			PackagePrice    float64 `json:"package_price"`
-			OrderSN         string  `json:"order_sn"`
-			DurationMinutes int     `json:"duration_minutes"`
-		}
-
-		var joinedUserPackage JoinedUserPackage
-		err = tx.Model("user_packages").As("up").
-			LeftJoin("users u", "u.id = up.user_id").
-			LeftJoin("drink_all_you_can_packages p", "p.id = up.package_id").
-			LeftJoin("orders o", "o.id = up.order_id").
-			Fields("up.*, u.nickname, u.phone, p.name as package_name, p.price as package_price, o.order_sn, p.duration_minutes").
-			Where("up.id", req.UserPackageID).
-			Scan(&joinedUserPackage)
-		if err != nil {
-			return err
-		}
-
-		// 转换为API响应格式
-		detail = &v1.AdminUserPackage{
-			ID:           int64(joinedUserPackage.Id),
-			UserID:       int64(joinedUserPackage.UserId),
-			PackageID:    int64(joinedUserPackage.PackageId),
-			OrderID:      int64(joinedUserPackage.OrderId),
-			Status:       joinedUserPackage.Status,
-			UserName:     joinedUserPackage.Nickname,
-			UserPhone:    joinedUserPackage.Phone,
-			PackageName:  joinedUserPackage.PackageName,
-			PackagePrice: joinedUserPackage.PackagePrice,
-			OrderSN:      joinedUserPackage.OrderSN,
-		}
-
-		// 如果用户名为空，使用默认名称
-		if detail.UserName == "" {
-			detail.UserName = "用户" + gconv.String(joinedUserPackage.UserId)
-		}
-
-		// 状态描述
-		switch joinedUserPackage.Status {
+		// 根据新的状态，可能需要调整开始/结束时间
+		switch req.Status {
 		case consts.PackageStatusActive:
-			detail.StatusDesc = "已激活"
-		case consts.PackageStatusExpired:
-			detail.StatusDesc = "已过期"
-		case consts.PackageStatusPending:
-			detail.StatusDesc = "待激活"
-		case "refunded":
-			detail.StatusDesc = "已退款"
-		default:
-			detail.StatusDesc = joinedUserPackage.Status
-		}
-
-		// 时间处理
-		if joinedUserPackage.StartTime != nil {
-			detail.StartTime = utility.FormatTimeOrEmpty(joinedUserPackage.StartTime)
-		}
-		if joinedUserPackage.EndTime != nil {
-			detail.EndTime = utility.FormatTimeOrEmpty(joinedUserPackage.EndTime)
-
-			// 计算有效期描述
-			if joinedUserPackage.StartTime != nil && joinedUserPackage.Status == consts.PackageStatusActive {
-				duration := joinedUserPackage.EndTime.Sub(gtime.Now())
-				days := int(duration.Hours()) / 24
-				hours := int(duration.Hours()) % 24
-				if days > 0 {
-					detail.ValidPeriod = gconv.String(days) + "天"
-					if hours > 0 {
-						detail.ValidPeriod += gconv.String(hours) + "小时"
-					}
-				} else if hours > 0 {
-					detail.ValidPeriod = gconv.String(hours) + "小时"
-				} else {
-					detail.ValidPeriod = "即将到期"
+			// 如果是从pending激活，需要设置开始和结束时间
+			if userPackage.Status == consts.PackageStatusPending {
+				var pkg entity.DrinkAllYouCanPackages
+				err := tx.Model(dao.DrinkAllYouCanPackages.Table()).Where("id", userPackage.PackageId).Scan(&pkg)
+				if err != nil {
+					return gerror.Wrap(err, "获取套餐模板信息失败")
 				}
-			} else if joinedUserPackage.Status == consts.PackageStatusExpired {
-				detail.ValidPeriod = "已过期"
-			} else if joinedUserPackage.Status == consts.PackageStatusPending {
-				detail.ValidPeriod = gconv.String(joinedUserPackage.DurationMinutes/60) + "小时"
-			} else {
-				detail.ValidPeriod = "-"
+				now := gtime.Now()
+				updateData["start_time"] = now
+				updateData["end_time"] = now.Add(time.Minute * time.Duration(pkg.DurationMinutes))
 			}
-		} else {
-			detail.ValidPeriod = "-"
+		case consts.PackageStatusPending:
+			// 如果改为待激活，清除开始和结束时间
+			updateData["start_time"] = nil
+			updateData["end_time"] = nil
+		case "refunded":
+			// 如果是退款，也应该清除时间，并可能记录原因（如果表有字段）
+			updateData["start_time"] = nil
+			updateData["end_time"] = nil
 		}
 
-		detail.CreatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.CreatedAt)
-		detail.UpdatedAt = utility.FormatTimeOrEmpty(joinedUserPackage.UpdatedAt)
+		_, err = tx.Model(dao.UserPackages.Table()).
+			Data(updateData).
+			Where("id", userPackage.Id).
+			Update()
+
+		if err != nil {
+			g.Log().Errorf(ctx, "更新用户套餐状态失败: %v", err)
+			return err
+		}
+
+		// 可以在这里记录状态变更日志（如果需要）
+		g.Log().Infof(ctx, "用户套餐ID %d 状态已从 %s 更新为 %s，原因: %s", userPackage.Id, userPackage.Status, req.Status, req.Reason)
 
 		return nil
 	})
@@ -681,31 +616,8 @@ func (s *userPackageService) UpdateUserPackageStatus(ctx context.Context, req *v
 		return nil, err
 	}
 
-	return detail, nil
-}
-
-// isValidStatusChange 检查状态变更是否合法
-func (s *userPackageService) isValidStatusChange(oldStatus, newStatus string) bool {
-	if oldStatus == newStatus {
-		return true
-	}
-
-	switch oldStatus {
-	case consts.PackageStatusPending:
-		// 待激活 -> 已激活/已退款
-		return newStatus == consts.PackageStatusActive || newStatus == "refunded"
-	case consts.PackageStatusActive:
-		// 已激活 -> 已过期/已退款
-		return newStatus == consts.PackageStatusExpired || newStatus == "refunded"
-	case consts.PackageStatusExpired:
-		// 已过期 -> 已退款
-		return newStatus == "refunded"
-	case "refunded":
-		// 已退款 -> 不能变更
-		return false
-	default:
-		return false
-	}
+	// 5. 返回更新后的完整信息
+	return s.GetUserPackageDetail(ctx, req.UserPackageID)
 }
 
 // GetUserActivePackages 获取用户有效套餐
@@ -1018,97 +930,99 @@ func (s *userPackageService) GetUserMyPackages(ctx context.Context, userID int64
 func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userPackageID int64) (detail *v1.AdminUserPackageFullDetail, err error) {
 	detail = &v1.AdminUserPackageFullDetail{}
 
-	// 查询用户套餐基本信息
-	var userPackage entity.UserPackages
-	err = g.DB().Model("user_packages").Where("id", userPackageID).Scan(&userPackage)
+	// 定义一个结构体来接收JOIN查询的结果
+	type FullDetailResult struct {
+		entity.UserPackages
+		UserNickname    string      `gorm:"column:user_nickname"`
+		UserAvatarUrl   string      `gorm:"column:user_avatar_url"`
+		UserPhone       string      `gorm:"column:user_phone"`
+		PackageName     string      `gorm:"column:package_name"`
+		PackageDesc     string      `gorm:"column:package_desc"`
+		PackagePrice    float64     `gorm:"column:package_price"`
+		PackageDuration int         `gorm:"column:package_duration"`
+		OrderSN         string      `gorm:"column:order_sn"`
+		OrderTotalFee   float64     `gorm:"column:order_total_fee"`
+		OrderPayStatus  string      `gorm:"column:order_pay_status"`
+		OrderPaidAt     *gtime.Time `gorm:"column:order_paid_at"`
+	}
+
+	var result FullDetailResult
+
+	// 优化1：使用LEFT JOIN一次性查询关联的所有信息
+	err = g.DB().Model("user_packages up").
+		Fields(
+			"up.*",
+			"u.nickname as user_nickname, u.avatar_url as user_avatar_url, u.phone as user_phone",
+			"p.name as package_name, p.description as package_desc, p.price as package_price, p.duration_minutes as package_duration",
+			"o.order_sn as order_sn, o.total_amount as order_total_fee, o.payment_status as order_pay_status, o.paid_at as order_paid_at",
+		).
+		LeftJoin("users u", "u.id = up.user_id").
+		LeftJoin("drink_all_you_can_packages p", "p.id = up.package_id").
+		LeftJoin("orders o", "o.id = up.order_id").
+		Where("up.id", userPackageID).
+		Scan(&result)
+
 	if err != nil {
-		g.Log().Errorf(ctx, "查询用户套餐失败, ID:%d, 错误:%v", userPackageID, err)
+		g.Log().Errorf(ctx, "查询用户套餐完整信息失败, ID:%d, 错误:%v", userPackageID, err)
 		return nil, err
 	}
-	if userPackage.Id == 0 {
+
+	if result.Id == 0 {
 		return nil, gerror.New("用户套餐不存在")
 	}
 
 	// 实时检查并更新套餐状态
-	if err = s.CheckAndUpdatePackageStatus(ctx, &userPackage); err != nil {
+	if err = s.CheckAndUpdatePackageStatus(ctx, &result.UserPackages); err != nil {
+		// 即使状态更新失败，也继续返回数据，只记录日志
 		g.Log().Errorf(ctx, "检查更新套餐状态失败: %v", err)
 	}
 
+	// 优化2：将查询结果直接映射到返回的DTO结构中
 	// 转换基本信息
-	detail.ID = int64(userPackage.Id)
-	detail.UserID = int64(userPackage.UserId)
-	detail.PackageID = int64(userPackage.PackageId)
-	detail.OrderID = int64(userPackage.OrderId)
-	detail.Status = userPackage.Status
-	detail.CreatedAt = utility.FormatTimeOrEmpty(userPackage.CreatedAt)
-	detail.UpdatedAt = utility.FormatTimeOrEmpty(userPackage.UpdatedAt)
-	if userPackage.StartTime != nil {
-		detail.StartTime = utility.FormatTimeOrEmpty(userPackage.StartTime)
+	detail.ID = int64(result.Id)
+	detail.UserID = int64(result.UserId)
+	detail.PackageID = int64(result.PackageId)
+	detail.OrderID = int64(result.OrderId)
+	detail.Status = result.Status
+	detail.CreatedAt = utility.FormatTimeOrEmpty(result.CreatedAt)
+	detail.UpdatedAt = utility.FormatTimeOrEmpty(result.UpdatedAt)
+	if result.StartTime != nil {
+		detail.StartTime = utility.FormatTimeOrEmpty(result.StartTime)
 	}
-	if userPackage.EndTime != nil {
-		detail.EndTime = utility.FormatTimeOrEmpty(userPackage.EndTime)
-	}
-
-	// 查询用户信息
-	var user entity.Users
-	err = g.DB().Model("users").Where("id", userPackage.UserId).Scan(&user)
-	if err != nil {
-		g.Log().Errorf(ctx, "查询用户信息失败, ID:%d, 错误:%v", userPackage.UserId, err)
-		return nil, err
-	}
-	if user.Id > 0 {
-		detail.User.ID = int64(user.Id)
-		detail.User.Nickname = user.Nickname
-		detail.User.AvatarUrl = user.AvatarUrl
-		detail.User.Phone = user.Phone
-		// 设置用户名称
-		detail.UserName = user.Nickname
-		if detail.UserName == "" {
-			detail.UserName = "用户" + gconv.String(user.Id)
-		}
-	} else {
-		detail.UserName = "用户" + gconv.String(userPackage.UserId)
+	if result.EndTime != nil {
+		detail.EndTime = utility.FormatTimeOrEmpty(result.EndTime)
 	}
 
-	// 查询套餐信息
-	var packageInfo entity.DrinkAllYouCanPackages
-	err = g.DB().Model("drink_all_you_can_packages").Where("id", userPackage.PackageId).Scan(&packageInfo)
-	if err != nil {
-		g.Log().Errorf(ctx, "查询套餐信息失败, ID:%d, 错误:%v", userPackage.PackageId, err)
-		return nil, err
-	}
-	if packageInfo.Id > 0 {
-		detail.Package.ID = int64(packageInfo.Id)
-		detail.Package.Name = packageInfo.Name
-		detail.Package.Description = packageInfo.Description
-		detail.Package.Price = packageInfo.Price
-		detail.Package.DurationMinutes = packageInfo.DurationMinutes
-		// 设置套餐名称
-		detail.PackageName = packageInfo.Name
+	// 填充用户信息
+	detail.User.ID = int64(result.UserId)
+	detail.User.Nickname = result.UserNickname
+	detail.User.AvatarUrl = result.UserAvatarUrl
+	detail.User.Phone = result.UserPhone
+	detail.UserName = result.UserNickname
+	if detail.UserName == "" {
+		detail.UserName = "用户" + gconv.String(result.UserId)
 	}
 
-	// 查询订单信息
-	if userPackage.OrderId > 0 {
-		var order entity.Orders
-		err = g.DB().Model("orders").Where("id", userPackage.OrderId).Scan(&order)
-		if err != nil {
-			g.Log().Errorf(ctx, "查询订单信息失败, ID:%d, 错误:%v", userPackage.OrderId, err)
-			return nil, err
-		}
-		if order.Id > 0 {
-			detail.Order.ID = int64(order.Id)
-			detail.Order.OrderSN = order.OrderSn
-			detail.OrderSN = order.OrderSn // 设置订单编号
-			detail.Order.TotalFee = order.TotalAmount
-			detail.Order.PayStatus = order.PaymentStatus
-			if order.PaidAt != nil {
-				detail.Order.PayTime = utility.FormatTimeOrEmpty(order.PaidAt)
-			}
-		}
+	// 填充套餐信息
+	detail.Package.ID = int64(result.PackageId)
+	detail.Package.Name = result.PackageName
+	detail.Package.Description = result.PackageDesc
+	detail.Package.Price = result.PackagePrice
+	detail.Package.DurationMinutes = result.PackageDuration
+	detail.PackageName = result.PackageName
+
+	// 填充订单信息
+	if result.OrderId > 0 {
+		detail.Order.ID = int64(result.OrderId)
+		detail.Order.OrderSN = result.OrderSN
+		detail.OrderSN = result.OrderSN
+		detail.Order.TotalFee = result.OrderTotalFee
+		detail.Order.PayStatus = result.OrderPayStatus
+		detail.Order.PayTime = utility.FormatTimeOrEmpty(result.OrderPaidAt)
 	}
 
 	// 设置状态描述
-	switch userPackage.Status {
+	switch result.Status {
 	case consts.PackageStatusActive:
 		detail.StatusDesc = "已激活"
 	case consts.PackageStatusExpired:
@@ -1118,13 +1032,13 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 	case "refunded":
 		detail.StatusDesc = "已退款"
 	default:
-		detail.StatusDesc = userPackage.Status
+		detail.StatusDesc = result.Status
 	}
 
 	// 计算有效期描述
-	if userPackage.EndTime != nil {
-		if userPackage.StartTime != nil && userPackage.Status == consts.PackageStatusActive {
-			duration := userPackage.EndTime.Sub(gtime.Now())
+	if result.EndTime != nil {
+		if result.StartTime != nil && result.Status == consts.PackageStatusActive {
+			duration := result.EndTime.Sub(gtime.Now())
 			days := int(duration.Hours()) / 24
 			hours := int(duration.Hours()) % 24
 			if days > 0 {
@@ -1137,11 +1051,11 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 			} else {
 				detail.ValidPeriod = "即将到期"
 			}
-		} else if userPackage.Status == consts.PackageStatusExpired {
+		} else if result.Status == consts.PackageStatusExpired {
 			detail.ValidPeriod = "已过期"
-		} else if userPackage.Status == consts.PackageStatusPending {
-			if packageInfo.Id > 0 {
-				detail.ValidPeriod = gconv.String(packageInfo.DurationMinutes/60) + "小时"
+		} else if result.Status == consts.PackageStatusPending {
+			if result.PackageDuration > 0 {
+				detail.ValidPeriod = gconv.String(result.PackageDuration/60) + "小时"
 			} else {
 				detail.ValidPeriod = "-"
 			}
@@ -1161,22 +1075,17 @@ func (s *userPackageService) GetUserPackageFullDetail(ctx context.Context, userP
 
 	var usageRecord UsageRecord
 	// 这里需要根据实际的数据库结构查询使用记录
-	// 以下是一个示例，假设有一个order_items表记录了套餐的使用情况
+	// 优化3：保持这个独立的聚合查询，因为它与主查询的粒度不同
 	err = g.DB().Model("order_items").
 		Where("user_package_id", userPackageID).
 		Fields("COUNT(1) as total_used_times, MAX(created_at) as last_used_time").
 		Scan(&usageRecord)
-
 	if err != nil {
-		g.Log().Errorf(ctx, "查询使用情况失败, 用户套餐ID:%d, 错误:%v", userPackageID, err)
-		// 这里不返回错误，因为使用情况不是必须的
-		detail.Usage.TotalUsedTimes = 0
-		detail.Usage.LastUsedTime = ""
+		// 查询使用记录失败不应阻塞主流程
+		g.Log().Warningf(ctx, "查询套餐使用记录失败, UserPackageID: %d, Error: %v", userPackageID, err)
 	} else {
 		detail.Usage.TotalUsedTimes = usageRecord.TotalUsedTimes
-		if usageRecord.LastUsedTime != nil {
-			detail.Usage.LastUsedTime = utility.FormatTimeOrEmpty(usageRecord.LastUsedTime)
-		}
+		detail.Usage.LastUsedTime = utility.FormatTimeOrEmpty(usageRecord.LastUsedTime)
 	}
 
 	return detail, nil

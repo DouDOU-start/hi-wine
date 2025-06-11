@@ -31,21 +31,18 @@ func (c *ControllerV1) AdminUserPackageCreate(ctx context.Context, req *v1.Admin
 
 // AdminUserPackageUpdateStatus 更新用户套餐状态
 func (c *ControllerV1) AdminUserPackageUpdateStatus(ctx context.Context, req *v1.AdminUserPackageUpdateStatusReq) (res *v1.AdminUserPackageUpdateStatusRes, err error) {
-	// 创建响应对象
 	res = &v1.AdminUserPackageUpdateStatusRes{}
 
-	// 调用服务更新用户套餐状态
-	detail, err := service.UserPackage().UpdateUserPackageStatus(ctx, req)
+	updatedPackage, err := service.UserPackage().UpdateUserPackageStatus(ctx, req)
 	if err != nil {
 		res.Code = common.CodeServerError
 		res.Message = err.Error()
 		return res, nil
 	}
 
-	// 设置响应数据
 	res.Code = common.CodeSuccess
 	res.Message = "更新用户套餐状态成功"
-	res.Data = *detail
+	res.Data = *updatedPackage
 
 	return res, nil
 }

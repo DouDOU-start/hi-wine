@@ -162,6 +162,7 @@ func bindAdminControllerExceptLogin(group *ghttp.RouterGroup, controller admin.I
 	// 绑定用户套餐相关接口
 	group.Bind(controller.AdminUserPackageList)
 	group.Bind(controller.AdminUserPackageFullDetail)
+	group.Bind(controller.AdminUserPackageUpdateStatus)
 
 	// 绑定用户管理相关接口
 	group.Bind(controller.AdminUserList)
