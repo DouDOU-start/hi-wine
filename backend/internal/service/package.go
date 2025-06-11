@@ -374,7 +374,7 @@ func (s *packageService) GetPackageProducts(ctx context.Context, packageID int64
 		product.Stock = p.Stock
 		product.Description = p.Description
 		product.CategoryID = int64(p.CategoryId)
-		product.Status = p.IsActive
+		product.IsActive = p.IsActive
 		list = append(list, product)
 	}
 
@@ -529,7 +529,7 @@ func (s *packageService) GetAvailableProducts(ctx context.Context, packageID int
 		product.Stock = p.Stock
 		product.Description = p.Description
 		product.CategoryID = int64(p.CategoryId)
-		product.Status = p.IsActive
+		product.IsActive = p.IsActive
 		list = append(list, product)
 	}
 

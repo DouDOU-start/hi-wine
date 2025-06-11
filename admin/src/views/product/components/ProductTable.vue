@@ -100,12 +100,12 @@
           </template>
           
           <!-- 状态列 -->
-          <template v-else-if="col.prop === 'status'">
+          <template v-else-if="col.prop === 'isActive'">
             <el-tag 
-              :type="scope.row.status === 1 ? 'success' : 'info'" 
+              :type="scope.row.isActive === 1 ? 'success' : 'info'" 
               effect="light"
             >
-              {{ scope.row.status === 1 ? '上架' : '下架' }}
+              {{ scope.row.isActive === 1 ? '上架' : '下架' }}
             </el-tag>
           </template>
           
@@ -135,12 +135,12 @@
               编辑
             </el-button>
             <el-button 
-              :type="scope.row.status === 1 ? 'info' : 'success'" 
+              :type="scope.row.isActive === 1 ? 'info' : 'success'" 
               link 
               @click="$emit('toggle-status', scope.row)"
               v-if="hasPermission('product:update')"
             >
-              {{ scope.row.status === 1 ? '下架' : '上架' }}
+              {{ scope.row.isActive === 1 ? '下架' : '上架' }}
             </el-button>
             <el-button 
               type="danger" 
@@ -242,7 +242,7 @@ const tableData = computed(() => {
         imageUrl: item.imageUrl || item.image_url || '',
         price: item.price || 0,
         stock: item.stock || 0,
-        status: typeof item.status !== 'undefined' ? item.status : 0,
+        isActive: typeof item.isActive !== 'undefined' ? item.isActive : 0,
         categoryId: item.categoryId || item.category_id || 0,
         categoryName: item.categoryName || getCategoryNameById(item.categoryId || item.category_id) || '未分类',
         createdAt: item.createdAt || item.created_at || item.createTime || new Date().toISOString(),
@@ -267,7 +267,7 @@ const columns = [
   { prop: 'categoryName', label: '分类', width: 120 },
   { prop: 'price', label: '价格', width: 100, sortable: true },
   { prop: 'stock', label: '库存', width: 100, sortable: true },
-  { prop: 'status', label: '状态', width: 100 },
+  { prop: 'isActive', label: '状态', width: 100 },
   { prop: 'createdAt', label: '创建时间', width: 180, sortable: true },
   { prop: 'actions', label: '操作', width: 200, fixed: 'right', align: 'center' }
 ];

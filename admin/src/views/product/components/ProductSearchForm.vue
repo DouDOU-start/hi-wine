@@ -1,124 +1,154 @@
 <template>
-  <search-form 
-    :model="searchForm" 
-    :initial-model="initialSearchForm"
-    @search="handleSearch"
-    @reset="handleReset"
-  >
-    <!-- 基础搜索项 -->
-    <el-row :gutter="20">
-      <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
-        <form-item
-          type="input"
-          label="商品名称"
-          v-model="searchForm.name"
-          placeholder="请输入商品名称"
+  <el-card shadow="hover" class="search-card">
+    <el-form :inline="true" :model="searchForm" class="search-form" size="default">
+      <!-- 基础搜索项 -->
+      <el-form-item label="商品名称">
+        <el-input 
+          v-model="searchForm.name" 
+          placeholder="请输入商品名称" 
           clearable
+          style="width: 200px;"
         />
-      </el-col>
-      <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
-        <form-item
-          type="select"
-          label="分类"
-          v-model="searchForm.categoryId"
-          placeholder="请选择分类"
-          clearable
+      </el-form-item>
+      
+      <el-form-item label="分类">
+        <el-select 
+          v-model="searchForm.categoryId" 
+          placeholder="请选择分类" 
+          clearable 
           filterable
-          :options="categoryOptions"
-        />
-      </el-col>
-      <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
-        <form-item
-          type="select"
-          label="状态"
-          v-model="searchForm.status"
-          placeholder="请选择状态"
+          style="width: 200px;"
+        >
+          <el-option 
+            v-for="item in categoryOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" 
+          />
+        </el-select>
+      </el-form-item>
+      
+      <el-form-item label="状态">
+        <el-select 
+          v-model="searchForm.status" 
+          placeholder="请选择状态" 
           clearable
-          :options="statusOptions"
-        />
-      </el-col>
-    </el-row>
+          style="width: 200px;"
+        >
+          <el-option 
+            v-for="item in statusOptions" 
+            :key="item.value" 
+            :label="item.label" 
+            :value="item.value" 
+          />
+        </el-select>
+      </el-form-item>
+      
+      <el-form-item>
+        <el-button type="primary" @click="handleSearch">
+          <el-icon><Search /></el-icon>查询
+        </el-button>
+        <el-button @click="handleReset">
+          <el-icon><Refresh /></el-icon>重置
+        </el-button>
+        <el-button type="text" @click="showAdvanced = !showAdvanced">
+          {{ showAdvanced ? '收起' : '高级筛选' }}
+          <el-icon>
+            <component :is="showAdvanced ? 'ArrowUp' : 'ArrowDown'" />
+          </el-icon>
+        </el-button>
+      </el-form-item>
+    </el-form>
     
-    <!-- 高级搜索项 -->
-    <template #advanced>
-      <el-row :gutter="20">
-        <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
+    <!-- 高级搜索区域 -->
+    <el-collapse-transition>
+      <div v-show="showAdvanced" class="advanced-search">
+        <el-form :inline="true" :model="searchForm" class="search-form" size="default">
           <el-form-item label="价格区间">
             <el-input-number v-model="searchForm.minPrice" placeholder="最低价" :min="0" :precision="2" style="width: 120px;" />
             <span class="price-separator">至</span>
             <el-input-number v-model="searchForm.maxPrice" placeholder="最高价" :min="0" :precision="2" style="width: 120px;" />
           </el-form-item>
-        </el-col>
-        <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
-          <form-item
-            type="select"
-            label="库存"
-            v-model="searchForm.stockStatus"
-            placeholder="库存状态"
-            clearable
-            :options="stockOptions"
-          />
-        </el-col>
-        <el-col :xs="24" :sm="8" :md="6" :lg="6" :xl="4">
-          <form-item
-            type="date"
-            label="创建时间"
-            v-model="searchForm.dateRange"
-            date-type="daterange"
-            value-format="YYYY-MM-DD"
-            range-separator="至"
-            start-placeholder="开始日期"
-            end-placeholder="结束日期"
-          />
-        </el-col>
-      </el-row>
-    </template>
+          
+          <el-form-item label="库存">
+            <el-select 
+              v-model="searchForm.stockStatus" 
+              placeholder="库存状态" 
+              clearable
+              style="width: 200px;"
+            >
+              <el-option 
+                v-for="item in stockOptions" 
+                :key="item.value" 
+                :label="item.label" 
+                :value="item.value" 
+              />
+            </el-select>
+          </el-form-item>
+          
+          <el-form-item label="创建时间">
+            <el-date-picker 
+              v-model="searchForm.dateRange" 
+              type="daterange" 
+              value-format="YYYY-MM-DD" 
+              range-separator="至" 
+              start-placeholder="开始日期" 
+              end-placeholder="结束日期"
+              style="width: 360px;"
+            />
+          </el-form-item>
+        </el-form>
+      </div>
+    </el-collapse-transition>
     
     <!-- 快速筛选标签 -->
-    <template #filters>
-      <el-button 
-        :class="['filter-button', { 'active': activeFilter === 'all' }]" 
-        size="small" 
-        @click="applyQuickFilter('all')"
-      >
-        <el-icon><Tickets /></el-icon>全部商品
-      </el-button>
-      <el-button 
-        :class="['filter-button', { 'active': activeFilter === 'lowStock' }]" 
-        size="small" 
-        @click="applyQuickFilter('lowStock')"
-        type="warning"
-        plain
-      >
-        <el-icon><WarningFilled /></el-icon>库存不足
-        <el-badge v-if="lowStockCount > 0" :value="lowStockCount" class="filter-badge" />
-      </el-button>
-      <el-button 
-        :class="['filter-button', { 'active': activeFilter === 'outOfStock' }]" 
-        size="small" 
-        @click="applyQuickFilter('outOfStock')"
-        type="danger"
-        plain
-      >
-        <el-icon><RemoveFilled /></el-icon>缺货商品
-        <el-badge v-if="outOfStockCount > 0" :value="outOfStockCount" class="filter-badge" />
-      </el-button>
-      <el-button 
-        :class="['filter-button', { 'active': activeFilter === 'onSale' }]" 
-        size="small" 
-        @click="applyQuickFilter('onSale')"
-        type="success"
-        plain
-      >
-        <el-icon><Sell /></el-icon>在售商品
-      </el-button>
-    </template>
-  </search-form>
+    <div class="quick-filter">
+      <span class="quick-filter-label">快速筛选:</span>
+      <div class="filter-button-group">
+        <el-button 
+          :class="['filter-button', { 'active': activeFilter === 'all' }]" 
+          size="small" 
+          @click="applyQuickFilter('all')"
+        >
+          <el-icon><Tickets /></el-icon>全部商品
+        </el-button>
+        <el-button 
+          :class="['filter-button', { 'active': activeFilter === 'lowStock' }]" 
+          size="small" 
+          @click="applyQuickFilter('lowStock')"
+          type="warning"
+          plain
+        >
+          <el-icon><WarningFilled /></el-icon>库存不足
+          <el-badge v-if="lowStockCount > 0" :value="lowStockCount" class="filter-badge" />
+        </el-button>
+        <el-button 
+          :class="['filter-button', { 'active': activeFilter === 'outOfStock' }]" 
+          size="small" 
+          @click="applyQuickFilter('outOfStock')"
+          type="danger"
+          plain
+        >
+          <el-icon><RemoveFilled /></el-icon>缺货商品
+          <el-badge v-if="outOfStockCount > 0" :value="outOfStockCount" class="filter-badge" />
+        </el-button>
+        <el-button 
+          :class="['filter-button', { 'active': activeFilter === 'onSale' }]" 
+          size="small" 
+          @click="applyQuickFilter('onSale')"
+          type="success"
+          plain
+        >
+          <el-icon><Sell /></el-icon>在售商品
+        </el-button>
+      </div>
+    </div>
+  </el-card>
 </template>
 
 <script setup>
 import { ref, defineEmits, defineProps } from 'vue';
-import { Tickets, WarningFilled, RemoveFilled, Sell } from '@element-plus/icons-vue';
+import { Tickets, WarningFilled, RemoveFilled, Sell, Search, Refresh, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
 
 const props = defineProps({
   categoryOptions: {
@@ -167,6 +197,9 @@ const searchForm = ref({ ...initialSearchForm });
 // 当前激活的快速筛选
 const activeFilter = ref('all');
 
+// 高级搜索显示状态
+const showAdvanced = ref(false);
+
 // 处理搜索
 const handleSearch = () => {
   emit('search', searchForm.value);
@@ -174,6 +207,11 @@ const handleSearch = () => {
 
 // 处理重置
 const handleReset = () => {
+  // 重置表单
+  Object.keys(searchForm.value).forEach(key => {
+    searchForm.value[key] = initialSearchForm[key];
+  });
+  
   activeFilter.value = 'all';
   emit('reset');
 };
@@ -206,6 +244,44 @@ const applyQuickFilter = (filter) => {
 </script>
 
 <style scoped>
+.search-card {
+  margin-bottom: 20px;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.advanced-search {
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #dcdfe6;
+}
+
+.quick-filter {
+  display: flex;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.quick-filter-label {
+  margin-right: 10px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.filter-button-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .price-separator {
   margin: 0 5px;
 }
@@ -222,5 +298,18 @@ const applyQuickFilter = (filter) => {
 
 .filter-badge {
   margin-left: 5px;
+}
+
+@media (max-width: 768px) {
+  .search-form {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .el-form-item {
+    margin-right: 0;
+    margin-bottom: 10px;
+    width: 100%;
+  }
 }
 </style> 

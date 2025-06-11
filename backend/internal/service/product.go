@@ -113,7 +113,7 @@ func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) 
 			Stock:       p.Stock,
 			Description: p.Description,
 			CategoryID:  int64(p.CategoryId),
-			Status:      p.IsActive,
+			IsActive:    p.IsActive,
 			CreatedAt:   p.CreatedAt.Format("2006-01-02 15:04:05"),
 			UpdatedAt:   p.UpdatedAt.Format("2006-01-02 15:04:05"),
 		}
@@ -181,7 +181,7 @@ func (s *productService) Create(ctx context.Context, req *v1.AdminProductCreateR
 		Stock:       newProduct.Stock,
 		Description: newProduct.Description,
 		CategoryID:  int64(newProduct.CategoryId),
-		Status:      newProduct.IsActive,
+		IsActive:    newProduct.IsActive,
 		CreatedAt:   newProduct.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   newProduct.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
@@ -267,7 +267,7 @@ func (s *productService) Update(ctx context.Context, req *v1.AdminProductUpdateR
 		Stock:       updatedProduct.Stock,
 		Description: updatedProduct.Description,
 		CategoryID:  int64(updatedProduct.CategoryId),
-		Status:      updatedProduct.IsActive,
+		IsActive:    updatedProduct.IsActive,
 		CreatedAt:   updatedProduct.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   updatedProduct.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}, nil
@@ -395,7 +395,7 @@ func (s *productService) GetProductsByCategory(ctx context.Context, categoryID i
 		list[i].ID = int64(p.Id)
 		list[i].ImageURL = p.ImageUrl
 		list[i].CategoryID = int64(p.CategoryId)
-		list[i].Status = p.IsActive
+		list[i].IsActive = p.IsActive
 		list[i].CreatedAt = p.CreatedAt.Format("2006-01-02 15:04:05")
 		list[i].UpdatedAt = p.UpdatedAt.Format("2006-01-02 15:04:05")
 		// 暂时不设置销量
@@ -428,7 +428,7 @@ func (s *productService) GetProductDetail(ctx context.Context, id int64) (*produ
 		Stock:       product.Stock,
 		Description: product.Description,
 		CategoryID:  int64(product.CategoryId),
-		Status:      product.IsActive,
+		IsActive:    product.IsActive,
 		CreatedAt:   product.CreatedAt.Format("2006-01-02 15:04:05"),
 		UpdatedAt:   product.UpdatedAt.Format("2006-01-02 15:04:05"),
 	}

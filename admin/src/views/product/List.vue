@@ -235,7 +235,7 @@ const handleDelete = async (row) => {
 
 // 处理状态切换
 const handleToggleStatus = async (row) => {
-  const newStatus = row.status === 1 ? 0 : 1;
+  const newStatus = row.isActive === 1 ? 0 : 1;
   try {
     await updateProductStatus(row.id, newStatus);
     ElMessage.success(`${newStatus === 1 ? '上架' : '下架'}成功`);

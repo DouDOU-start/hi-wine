@@ -18,13 +18,9 @@ export const {
 } = productApi;
 
 // 上下架商品
-export function updateProductStatus(id, status) {
-  // 确保status是布尔值
-  const isActive = status === 1;
-  
+export function updateProductStatus(id, isActive) {
   return productApi.update(id, { 
     is_active: isActive, 
-    status: status 
   });
 }
 
