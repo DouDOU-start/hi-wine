@@ -10,7 +10,7 @@
           <el-input v-model="queryParams.nickname" placeholder="请输入用户昵称" clearable @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="套餐名称">
-          <el-input v-model="queryParams.package_name" placeholder="请输入套餐名称" clearable @keyup.enter="handleQuery" />
+          <el-input v-model="queryParams.packageName" placeholder="请输入套餐名称" clearable @keyup.enter="handleQuery" />
         </el-form-item>
         <el-form-item label="状态">
           <el-select 
@@ -44,7 +44,7 @@
         <el-table-column label="用户信息" min-width="180">
           <template #default="scope">
             <div class="user-info">
-              <el-avatar :size="40" :src="scope.row.avatar_url || ''" />
+              <el-avatar :size="40" :src="scope.row.avatarUrl || ''" />
               <div class="user-detail">
                 <div>{{ scope.row.userName || '未知用户' }}</div>
                 <div class="user-phone">{{ scope.row.userPhone || '未绑定手机' }}</div>
@@ -59,12 +59,12 @@
             <div>结束: {{ formatDate(scope.row.endTime) }}</div>
             <div v-if="scope.row.status === 'active'" class="remaining-time">
               <el-tag size="small" effect="plain" type="success">
-                剩余: {{ scope.row.remaining_days || 0 }} 天
+                剩余: {{ scope.row.remainingDays || 0 }} 天
               </el-tag>
             </div>
             <div v-else class="status-desc">
               <el-tag size="small" effect="plain" :type="getStatusType(scope.row.status)">
-                {{ scope.row.status_desc || getStatusText(scope.row.status) }}
+                {{ scope.row.statusDesc || getStatusText(scope.row.status) }}
               </el-tag>
             </div>
           </template>
@@ -80,6 +80,11 @@
           <template #default="scope">
             <div v-if="scope.row.orderSn">
               <div class="order-info">订单号: {{ scope.row.orderSn }}</div>
+              <div class="order-status" v-if="scope.row.orderStatus">
+                <el-tag size="small" :type="scope.row.orderStatus === 'paid' ? 'success' : 'warning'">
+                  {{ scope.row.orderStatus === 'paid' ? '已支付' : scope.row.orderStatus === 'pending' ? '未支付' : scope.row.orderStatus || '未知状态' }}
+                </el-tag>
+              </div>
             </div>
             <div v-else>-</div>
           </template>
@@ -117,8 +122,8 @@
           background
           layout="total, sizes, prev, pager, next, jumper"
           :total="total"
-          :page-size="queryParams.page_size"
-          :current-page="queryParams.page_num"
+          :page-size="queryParams.pageSize"
+          :current-page="queryParams.pageNum"
           :page-sizes="[10, 20, 50, 100]"
           @size-change="handleSizeChange"
           @current-change="handleCurrentChange"
@@ -133,15 +138,15 @@
       width="700px"
       destroy-on-close
     >
-      <div v-loading="detailLoading">
+      <div v-if="!detailLoading && packageDetail.id" v-loading="detailLoading">
         <!-- 基本信息 -->
         <div class="detail-section">
           <h3 class="section-title">基本信息</h3>
           <el-descriptions :column="2" border>
             <el-descriptions-item label="套餐ID">{{ packageDetail.id }}</el-descriptions-item>
             <el-descriptions-item label="套餐名称">{{ packageDetail.packageName }}</el-descriptions-item>
-            <el-descriptions-item label="用户昵称">{{ packageDetail.userName || '未知用户' }}</el-descriptions-item>
-            <el-descriptions-item label="用户手机">{{ packageDetail.userPhone || '未绑定手机' }}</el-descriptions-item>
+            <el-descriptions-item label="用户昵称">{{ packageDetail.user?.nickname || packageDetail.userName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="用户手机">{{ packageDetail.user?.phone || '-' }}</el-descriptions-item>
             <el-descriptions-item label="状态">
               <el-tag :type="getStatusType(packageDetail.status)">
                 {{ getStatusText(packageDetail.status) }}
@@ -149,7 +154,7 @@
             </el-descriptions-item>
             <el-descriptions-item label="有效期">
               <el-tag size="small" effect="plain" :type="getStatusType(packageDetail.status)">
-                {{ packageDetail.validPeriod || '未知' }}
+                {{ packageDetail.validPeriod || '-' }}
               </el-tag>
             </el-descriptions-item>
             <el-descriptions-item label="开始时间">{{ formatDate(packageDetail.startTime) }}</el-descriptions-item>
@@ -159,32 +164,33 @@
         </div>
 
         <!-- 订单信息 -->
-        <div v-if="packageDetail.order_sn" class="detail-section">
+        <div v-if="packageDetail.order" class="detail-section">
           <h3 class="section-title">订单信息</h3>
           <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="订单号">{{ packageDetail.orderSn || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="订单号">{{ packageDetail.order.orderSn || '-' }}</el-descriptions-item>
             <el-descriptions-item label="支付状态">
-              <el-tag size="small" :type="packageDetail.order_status === 'paid' ? 'success' : 'warning'">
-                {{ packageDetail.order_status === 'paid' ? '已支付' : '未支付' }}
+              <el-tag v-if="packageDetail.order.payStatus" size="small" :type="packageDetail.order.payStatus === 'paid' ? 'success' : 'warning'">
+                {{ packageDetail.order.payStatus === 'paid' ? '已支付' : '未支付' }}
               </el-tag>
+              <span v-else>-</span>
             </el-descriptions-item>
-            <el-descriptions-item label="支付时间">{{ formatDate(packageDetail.pay_time) || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="支付时间">{{ formatDate(packageDetail.order.payTime) }}</el-descriptions-item>
             <el-descriptions-item label="订单金额">
-              <span class="price-value">¥{{ packageDetail.total_fee || packageDetail.package_price || 0 }}</span>
+              <span class="price-value">¥{{ packageDetail.order.totalFee || 0 }}</span>
             </el-descriptions-item>
           </el-descriptions>
         </div>
         
         <!-- 套餐详情 -->
-        <div v-if="packageDetail.package_name" class="detail-section">
+        <div v-if="packageDetail.package" class="detail-section">
           <h3 class="section-title">套餐详情</h3>
           <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="套餐名称">{{ packageDetail.packageName || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="套餐名称">{{ packageDetail.package.name || '-' }}</el-descriptions-item>
             <el-descriptions-item label="套餐价格">
-              <span class="price-value">¥{{ packageDetail.package_price || 0 }}</span>
+              <span class="price-value">¥{{ packageDetail.package.price || 0 }}</span>
             </el-descriptions-item>
-            <el-descriptions-item label="时长(天)">{{ packageDetail.duration || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="套餐描述" :span="2">{{ packageDetail.description || '-' }}</el-descriptions-item>
+            <el-descriptions-item label="时长(分钟)">{{ packageDetail.package.durationMinutes || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="套餐描述" :span="2">{{ packageDetail.package.description || '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
         
@@ -192,10 +198,10 @@
         <div v-if="hasUsageRecords" class="detail-section">
           <h3 class="section-title">使用记录</h3>
           <div class="usage-stats">
-            <el-tag type="info">总使用次数: {{ packageDetail.total_used_times || packageDetail.records.length || 0 }}</el-tag>
-            <el-tag type="success" v-if="packageDetail.last_used_time">最后使用: {{ formatDate(packageDetail.last_used_time) }}</el-tag>
+            <el-tag type="info">总使用次数: {{ packageDetail.usage?.totalUsedTimes || 0 }}</el-tag>
+            <el-tag type="success" v-if="packageDetail.usage?.lastUsedTime">最后使用: {{ formatDate(packageDetail.usage.lastUsedTime) }}</el-tag>
           </div>
-          <el-table :data="packageDetail.records" border style="width: 100%; margin-top: 10px;">
+          <el-table :data="packageDetail.usage?.records || []" border style="width: 100%; margin-top: 10px;">
             <el-table-column prop="use_time" label="使用时间" width="180">
               <template #default="scope">{{ formatDate(scope.row.use_time) }}</template>
             </el-table-column>
@@ -214,6 +220,7 @@
           <el-button v-if="packageDetail.status === 'pending'" type="success" @click="handleStatusChangeInDialog('active')">设为生效</el-button>
         </div>
       </div>
+      <div v-else v-loading="detailLoading" style="min-height: 200px;"></div>
     </el-dialog>
   </div>
 </template>
@@ -226,10 +233,10 @@ import { formatDate as formatDateTime } from '../../utils/format';
 
 // 查询参数
 const queryParams = reactive({
-  page_num: 1,
-  page_size: 10,
+  pageNum: 1,
+  pageSize: 10,
   nickname: '',
-  package_name: '',
+  packageName: '',
   status: ''
 });
 
@@ -241,7 +248,7 @@ const loading = ref(false);
 // 详情相关
 const detailDialogVisible = ref(false);
 const detailLoading = ref(false);
-const packageDetail = ref({});
+const packageDetail = reactive({});
 
 // 状态映射表
 const STATUS_MAP = {
@@ -266,51 +273,6 @@ const getStatusText = (status) => {
 const getStatusType = (status) => {
   return STATUS_MAP[status]?.type || 'info';
 };
-
-// 处理列表数据
-// const processListItem = (item) => {
-//   if (!item) return {};
-  
-//   // 创建副本，避免直接修改原始数据
-//   const result = {...item};
-  
-//   // 处理时间格式
-//   if (!result.start_time && result.created_at) {
-//     result.start_time = result.created_at;
-//   }
-  
-//   // 处理状态描述
-//   if (!result.status_desc && result.status) {
-//     result.status_desc = getStatusText(result.status);
-//   }
-  
-//   // 确保用户信息字段存在
-//   result.userName = result.userName || '未知用户';
-//   result.userPhone = result.userPhone || '未绑定手机';
-//   // result.avatar_url = result.avatar_url || result.avatarUrl || '';
-  
-//   // 确保套餐信息字段存在
-//   // result.package_name = result.package_name || result.packageName || '未知套餐';
-  
-//   // 确保日期字段格式一致
-//   // result.created_at = result.created_at || result.createdAt || '';
-//   // result.end_time = result.end_time || result.endTime || '';
-  
-//   // 计算剩余天数
-//   if (!result.remaining_days && result.end_time) {
-//     try {
-//       const endDate = new Date(result.end_time);
-//       const today = new Date();
-//       const diffTime = endDate - today;
-//       result.remaining_days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-//       if (result.remaining_days < 0) result.remaining_days = 0;
-//     } catch (e) {
-//       result.remaining_days = 0;
-//     }
-//   }
-  
-//   return result;
-// };
 
 // 获取用户套餐列表
 const getList = async () => {
@@ -350,18 +312,10 @@ const getList = async () => {
     }
     
     // 处理每一项
-    // userPackageList.value = list.map(item => {
-    //   const processed = processListItem(item);
-    //   console.log('单项处理前:', item);
-    //   console.log('单项处理后:', processed);
-    //   return processed;
-    // });
     userPackageList.value = list.map(item => {
       // 直接返回原始数据，假设API已经处理好
       return item;
     });
-    
-    // console.log('处理后的最终列表数据:', userPackageList.value);
     
   } catch (error) {
     ElMessage.error('获取用户套餐列表失败');
@@ -375,7 +329,7 @@ const getList = async () => {
 
 // 查询
 const handleQuery = () => {
-  queryParams.page_num = 1;
+  queryParams.pageNum = 1;
   getList();
 };
 
@@ -383,21 +337,21 @@ const handleQuery = () => {
 const resetQuery = () => {
   Object.assign(queryParams, {
     nickname: '',
-    package_name: '',
+    packageName: '',
     status: '',
-    page_num: 1
+    pageNum: 1
   });
   getList();
 };
 
 // 分页改变
 const handleSizeChange = (size) => {
-  queryParams.page_size = size;
+  queryParams.pageSize = size;
   getList();
 };
 
 const handleCurrentChange = (page) => {
-  queryParams.page_num = page;
+  queryParams.pageNum = page;
   getList();
 };
 
@@ -434,9 +388,9 @@ const handleStatusChangeInDialog = (status) => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(async () => {
-    if (await changeStatus(packageDetail.value.id, status)) {
+    if (await changeStatus(packageDetail.id, status)) {
       // 刷新详情
-      handleViewDetail({ id: packageDetail.value.id });
+      handleViewDetail({ id: packageDetail.id });
     }
   }).catch(() => {});
 };
@@ -445,12 +399,16 @@ const handleStatusChangeInDialog = (status) => {
 const handleViewDetail = async (row) => {
   detailDialogVisible.value = true;
   detailLoading.value = true;
-  packageDetail.value = {};
+  // 清空旧数据以确保响应性
+  Object.keys(packageDetail).forEach(key => delete packageDetail[key]);
   
   try {
     const response = await getUserPackageDetail(row.id);
-    // packageDetail.value = processListItem(response.data || {});
-    packageDetail.value = response.data || {};
+    console.log('详情API响应:', response);
+    if (response.data) {
+      // 将获取的数据赋值给响应式对象
+      Object.assign(packageDetail, response.data);
+    }
   } catch (error) {
     ElMessage.error('获取套餐详情失败');
     console.error('获取套餐详情错误:', error);
@@ -461,7 +419,12 @@ const handleViewDetail = async (row) => {
 
 // 判断是否有使用记录
 const hasUsageRecords = computed(() => {
-  return packageDetail.value.records && packageDetail.value.records.length > 0;
+  const usage = packageDetail?.usage;
+  if (!usage) return false;
+  
+  return usage.totalUsedTimes > 0 || 
+         (usage.records && usage.records.length > 0) || 
+         usage.lastUsedTime;
 });
 
 // 初始化
@@ -519,6 +482,10 @@ onMounted(() => {
 .order-info {
   font-size: 13px;
   color: #606266;
+}
+
+.order-status {
+  margin-top: 5px;
 }
 
 .pagination-container {
