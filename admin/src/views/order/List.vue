@@ -2,185 +2,58 @@
   <div class="page-container">
     <div class="page-header">
       <div class="page-title">订单管理</div>
-      <div class="order-stats">
-        <el-tag type="info">总订单: {{ total }}</el-tag>
-        <el-tag type="success">已完成: {{ completedCount }}</el-tag>
-        <el-tag type="warning">待支付: {{ pendingCount }}</el-tag>
-        <el-tag type="danger">已取消: {{ cancelledCount }}</el-tag>
-      </div>
     </div>
     
-    <el-card shadow="hover" class="search-card">
-      <el-form :inline="true" :model="searchForm" class="search-form">
-        <el-row :gutter="20">
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="订单号">
-              <el-input v-model="searchForm.orderSn" placeholder="请输入订单号" clearable prefix-icon="Search" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="用户名">
-              <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable prefix-icon="User" />
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="订单状态">
-              <el-select v-model="searchForm.orderStatus" placeholder="请选择订单状态" clearable style="width: 100%">
-                <el-option label="待支付" value="new" />
-                <el-option label="已支付" value="processing" />
-                <el-option label="已完成" value="completed" />
-                <el-option label="已取消" value="cancelled" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :sm="12" :md="8" :lg="6">
-            <el-form-item label="下单时间">
-              <el-date-picker
-                v-model="searchForm.dateRange"
-                type="daterange"
-                range-separator="至"
-                start-placeholder="开始日期"
-                end-placeholder="结束日期"
-                value-format="YYYY-MM-DD"
-                style="width: 100%"
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <div class="search-buttons">
-          <el-button type="primary" @click="handleSearch">
-            <el-icon><Search /></el-icon>查询
-          </el-button>
-          <el-button @click="resetSearch">
-            <el-icon><Refresh /></el-icon>重置
-          </el-button>
-          <el-button type="success" @click="exportOrderData">
-            <el-icon><Download /></el-icon>导出订单
-          </el-button>
-        </div>
-      </el-form>
-    </el-card>
+    <!-- 订单统计组件 -->
+    <order-stats 
+      :stats="statsData" 
+      @refresh="fetchOrderStats"
+    />
     
+    <!-- 订单搜索组件 -->
+    <order-search-form 
+      :initial-conditions="searchForm"
+      :pending-count="statsData.pending"
+      :processing-count="statsData.processing"
+      :completed-count="statsData.completed"
+      @search="handleSearch"
+      @reset="resetSearch"
+      @export="exportOrderData"
+      @filter="handleFilter"
+    />
+    
+    <!-- 订单表格组件 -->
     <el-card shadow="hover" class="table-card">
-      <el-table
-        v-loading="loading"
-        :data="orderList"
-        border
-        stripe
-        style="width: 100%"
-        :header-cell-style="{ background: '#f5f7fa' }"
-      >
-        <el-table-column prop="orderSn" label="订单号" min-width="120" fixed="left" />
-        <el-table-column label="用户名" min-width="150">
-          <template #default="scope">
-            <div class="user-info">
-              <span v-if="scope.row.userNickname" class="user-nickname">{{ scope.row.userNickname }}</span>
-              <span v-else-if="scope.row.userName" class="user-name">{{ scope.row.userName }}</span>
-              <span v-else class="user-id">用户ID: {{ scope.row.userId || '-' }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="订单金额" width="120">
-          <template #default="scope">
-            <span class="price-value" :class="{'price-zero': scope.row.totalAmount <= 0}">
-              ￥{{ formatPrice(scope.row.totalAmount) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="商品数量" width="100" align="center">
-          <template #default="scope">
-            <el-tag size="small" effect="plain" type="info">
-              {{ scope.row.itemCount || 0 }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="订单状态" width="120">
-          <template #default="scope">
-            <el-tag :type="getOrderStatusType(scope.row.orderStatus)" effect="light">
-              {{ getOrderStatusText(scope.row.orderStatus) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="支付方式" width="120">
-          <template #default="scope">
-            <span class="payment-method">
-              {{ getPayMethodText(scope.row.paymentMethod) }}
-            </span>
-          </template>
-        </el-table-column>
-        <el-table-column label="下单时间" min-width="180">
-          <template #default="scope">
-            <div class="time-info">
-              <el-icon><Calendar /></el-icon>
-              {{ formatDate(scope.row.createdAt) }}
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="支付时间" min-width="180">
-          <template #default="scope">
-            <div class="time-info">
-              <el-icon><Timer /></el-icon>
-              {{ formatDate(scope.row.paidAt) }}
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
-          <template #default="scope">
-            <div class="action-buttons">
-              <el-button 
-                type="primary" 
-                link 
-                @click="handleViewDetail(scope.row)"
-              >
-                <el-icon><View /></el-icon>详情
-              </el-button>
-              <el-button 
-                v-if="scope.row.orderStatus === 'processing'"
-                type="success" 
-                link 
-                @click="handleCompleteOrder(scope.row)"
-              >
-                <el-icon><Check /></el-icon>完成
-              </el-button>
-              <el-button 
-                v-if="scope.row.orderStatus === 'new'"
-                type="danger" 
-                link 
-                @click="handleCancelOrder(scope.row)"
-              >
-                <el-icon><Close /></el-icon>取消
-              </el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-      
-      <div class="pagination-container">
-        <el-pagination
-          :current-page="currentPage"
-          :page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-          background
-        />
-      </div>
+      <order-table
+        :orders="orderList"
+        :loading="loading"
+        :total="total"
+        :current-page="currentPage"
+        :page-size="pageSize"
+        @view-detail="handleViewDetail"
+        @complete-order="handleCompleteOrder"
+        @cancel-order="handleCancelOrder"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
+        @refresh="fetchOrderList"
+        @batch-complete="handleBatchComplete"
+        @batch-cancel="handleBatchCancel"
+        @batch-export="handleBatchExport"
+        @update:current-page="currentPage = $event"
+        @update:page-size="pageSize = $event"
+      />
     </el-card>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { getOrderList, updateOrderStatus, exportOrders } from '../../api/order';
-import { formatDate } from '../../utils/format';
-import { 
-  Search, Refresh, Calendar, Timer, View, Check, Close, 
-  Download, User
-} from '@element-plus/icons-vue';
+import { getOrderList, updateOrderStatus, exportOrders, getOrderStats } from '../../api/order';
+import OrderSearchForm from '../../components/order/OrderSearchForm.vue';
+import OrderTable from '../../components/order/OrderTable.vue';
+import OrderStats from '../../components/order/OrderStats.vue';
 
 const router = useRouter();
 
@@ -203,23 +76,17 @@ const searchForm = reactive({
   dateRange: []
 });
 
-// 格式化金额
-const formatPrice = (price) => {
-  if (price === undefined || price === null) return '0.00';
-  return parseFloat(price).toFixed(2);
-};
-
 // 统计数据
-const completedCount = computed(() => {
-  return orderList.value.filter(order => order.orderStatus === 'completed').length;
-});
-
-const pendingCount = computed(() => {
-  return orderList.value.filter(order => order.orderStatus === 'new').length;
-});
-
-const cancelledCount = computed(() => {
-  return orderList.value.filter(order => order.orderStatus === 'cancelled').length;
+const statsData = reactive({
+  total: 0,
+  completed: 0,
+  pending: 0,
+  processing: 0,
+  cancelled: 0,
+  todayOrders: 0,
+  todaySales: 0,
+  monthOrders: 0,
+  monthSales: 0
 });
 
 // 获取订单列表
@@ -249,6 +116,25 @@ const fetchOrderList = async () => {
         order.orderStatus = order.status;
       }
       
+      // 确保订单状态值与组件中使用的一致
+      if (order.orderStatus) {
+        // 将可能的其他状态值映射到我们使用的状态值
+        const statusMap = {
+          '待支付': 'new',
+          '已支付': 'processing',
+          '已完成': 'completed',
+          '已取消': 'cancelled',
+          'pending': 'new',
+          'paid': 'processing',
+          'complete': 'completed',
+          'cancel': 'cancelled'
+        };
+        
+        if (statusMap[order.orderStatus]) {
+          order.orderStatus = statusMap[order.orderStatus];
+        }
+      }
+      
       // 统一创建时间字段
       if (order.createTime !== undefined && order.createdAt === undefined) {
         order.createdAt = order.createTime;
@@ -274,40 +160,38 @@ const fetchOrderList = async () => {
   }
 };
 
-// 获取订单状态文本
-const getOrderStatusText = (status) => {
-  const statusMap = {
-    'new': '待支付',
-    'processing': '已支付',
-    'completed': '已完成',
-    'cancelled': '已取消'
-  };
-  return statusMap[status] || '未知状态';
-};
-
-// 获取订单状态类型
-const getOrderStatusType = (status) => {
-  const typeMap = {
-    'new': 'warning',
-    'processing': 'success',
-    'completed': 'primary',
-    'cancelled': 'info'
-  };
-  return typeMap[status] || 'info';
-};
-
-// 获取支付方式文本
-const getPayMethodText = (method) => {
-  const methodMap = {
-    'wechat': '微信支付',
-    'alipay': '支付宝',
-    'balance': '余额支付'
-  };
-  return methodMap[method] || '-';
+// 获取订单统计数据
+const fetchOrderStats = async () => {
+  try {
+    const response = await getOrderStats();
+    if (response && response.data) {
+      const data = response.data;
+      
+      // 更新统计数据
+      statsData.total = data.total || 0;
+      statsData.completed = data.completed || 0;
+      statsData.pending = data.new || 0; // 后端可能使用new表示待支付
+      statsData.processing = data.processing || 0;
+      statsData.cancelled = data.cancelled || 0;
+      statsData.todayOrders = data.todayOrders || 0;
+      statsData.todaySales = data.todaySales || 0;
+      statsData.monthOrders = data.monthOrders || 0;
+      statsData.monthSales = data.monthSales || 0;
+    }
+  } catch (error) {
+    console.error('获取订单统计数据失败:', error);
+  }
 };
 
 // 搜索
-const handleSearch = () => {
+const handleSearch = (params) => {
+  // 更新搜索表单
+  Object.keys(params).forEach(key => {
+    if (searchForm.hasOwnProperty(key)) {
+      searchForm[key] = params[key];
+    }
+  });
+  
   currentPage.value = 1;
   fetchOrderList();
 };
@@ -318,6 +202,13 @@ const resetSearch = () => {
   searchForm.username = '';
   searchForm.orderStatus = '';
   searchForm.dateRange = [];
+  currentPage.value = 1;
+  fetchOrderList();
+};
+
+// 处理快速筛选
+const handleFilter = (filterData) => {
+  searchForm.orderStatus = filterData.orderStatus;
   currentPage.value = 1;
   fetchOrderList();
 };
@@ -350,6 +241,7 @@ const handleCompleteOrder = (row) => {
       await updateOrderStatus(row.id, 'completed');
       ElMessage.success('订单已完成');
       fetchOrderList();
+      fetchOrderStats(); // 更新统计数据
     } catch (error) {
       console.error('更新订单状态失败:', error);
       ElMessage.error('操作失败');
@@ -368,6 +260,7 @@ const handleCancelOrder = (row) => {
       await updateOrderStatus(row.id, 'cancelled');
       ElMessage.success('订单已取消');
       fetchOrderList();
+      fetchOrderStats(); // 更新统计数据
     } catch (error) {
       console.error('取消订单失败:', error);
       ElMessage.error('操作失败');
@@ -375,22 +268,87 @@ const handleCancelOrder = (row) => {
   }).catch(() => {});
 };
 
+// 批量完成订单
+const handleBatchComplete = (rows) => {
+  if (rows.length === 0) {
+    ElMessage.warning('请选择要操作的订单');
+    return;
+  }
+  
+  ElMessageBox.confirm(`确认将选中的 ${rows.length} 个订单标记为已完成?`, '提示', {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const promises = rows.map(row => updateOrderStatus(row.id, 'completed'));
+      await Promise.all(promises);
+      ElMessage.success(`已成功完成 ${rows.length} 个订单`);
+      fetchOrderList();
+      fetchOrderStats(); // 更新统计数据
+    } catch (error) {
+      console.error('批量更新订单状态失败:', error);
+      ElMessage.error('操作失败');
+    }
+  }).catch(() => {});
+};
+
+// 批量取消订单
+const handleBatchCancel = (rows) => {
+  if (rows.length === 0) {
+    ElMessage.warning('请选择要操作的订单');
+    return;
+  }
+  
+  ElMessageBox.confirm(`确认取消选中的 ${rows.length} 个订单?`, '警告', {
+    confirmButtonText: '确认',
+    cancelButtonText: '取消',
+    type: 'warning'
+  }).then(async () => {
+    try {
+      const promises = rows.map(row => updateOrderStatus(row.id, 'cancelled'));
+      await Promise.all(promises);
+      ElMessage.success(`已成功取消 ${rows.length} 个订单`);
+      fetchOrderList();
+      fetchOrderStats(); // 更新统计数据
+    } catch (error) {
+      console.error('批量取消订单失败:', error);
+      ElMessage.error('操作失败');
+    }
+  }).catch(() => {});
+};
+
+// 批量导出订单
+const handleBatchExport = (rows) => {
+  if (rows.length === 0) {
+    ElMessage.warning('请选择要导出的订单');
+    return;
+  }
+  
+  ElMessageBox.confirm(`确定要导出选中的 ${rows.length} 个订单数据吗?`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'info'
+  }).then(async () => {
+    try {
+      const orderIds = rows.map(row => row.id);
+      await exportOrders({ ids: orderIds.join(',') });
+      ElMessage.success('导出成功');
+    } catch (error) {
+      console.error('导出订单数据失败:', error);
+      ElMessage.error('导出失败');
+    }
+  }).catch(() => {});
+};
+
 // 导出订单数据
-const exportOrderData = () => {
+const exportOrderData = (params) => {
   ElMessageBox.confirm('确定要导出订单数据吗?', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'info'
   }).then(async () => {
     try {
-      const params = {
-        orderSn: searchForm.orderSn,
-        username: searchForm.username,
-        orderStatus: searchForm.orderStatus,
-        startDate: searchForm.dateRange && searchForm.dateRange[0],
-        endDate: searchForm.dateRange && searchForm.dateRange[1]
-      };
-      
       await exportOrders(params);
       ElMessage.success('导出成功');
     } catch (error) {
@@ -403,8 +361,24 @@ const exportOrderData = () => {
 // 初始化
 onMounted(() => {
   fetchOrderList();
+  fetchOrderStats();
 });
 </script>
+
+<style>
+/* 全局样式，确保下拉框正确显示 */
+.el-select {
+  width: 100%;
+}
+
+.el-select .el-input {
+  width: 100%;
+}
+
+.el-select-dropdown {
+  min-width: 150px !important;
+}
+</style>
 
 <style scoped>
 .page-container {
@@ -412,9 +386,6 @@ onMounted(() => {
 }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 20px;
 }
 
@@ -424,68 +395,7 @@ onMounted(() => {
   color: #303133;
 }
 
-.order-stats {
-  display: flex;
-  gap: 15px;
-}
-
-.search-card {
-  margin-bottom: 20px;
-}
-
-.search-buttons {
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
-  gap: 10px;
-}
-
 .table-card {
   margin-bottom: 20px;
-}
-
-.user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-nickname {
-  font-weight: 500;
-}
-
-.user-name, .user-id {
-  font-size: 12px;
-  color: #909399;
-}
-
-.price-value {
-  color: #f56c6c;
-  font-weight: bold;
-}
-
-.price-zero {
-  color: #909399;
-}
-
-.payment-method {
-  color: #606266;
-}
-
-.time-info {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #606266;
-}
-
-.action-buttons {
-  display: flex;
-  justify-content: center;
-}
-
-.pagination-container {
-  margin-top: 20px;
-  display: flex;
-  justify-content: flex-end;
 }
 </style> 
