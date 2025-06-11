@@ -123,6 +123,11 @@
           <template v-else-if="col.prop === 'createdAt'">
             {{ formatDate(scope.row.createdAt) }}
           </template>
+
+          <!-- 更新时间列 -->
+          <template v-else-if="col.prop === 'updatedAt'">
+            {{ formatDate(scope.row.updatedAt) }}
+          </template>
           
           <!-- 操作列 -->
           <template v-else-if="col.prop === 'actions'">
@@ -246,6 +251,7 @@ const tableData = computed(() => {
         categoryId: item.categoryId || item.category_id || 0,
         categoryName: item.categoryName || getCategoryNameById(item.categoryId || item.category_id) || '未分类',
         createdAt: item.createdAt || item.created_at || item.createTime || new Date().toISOString(),
+        updatedAt: item.updatedAt || item.updated_at || item.updateTime || new Date().toISOString(),
         ...item // 保留其他字段
       };
     });
@@ -269,6 +275,7 @@ const columns = [
   { prop: 'stock', label: '库存', width: 100, sortable: true },
   { prop: 'isActive', label: '状态', width: 100 },
   { prop: 'createdAt', label: '创建时间', width: 180, sortable: true },
+  { prop: 'updatedAt', label: '更新时间', width: 180, sortable: true },
   { prop: 'actions', label: '操作', width: 200, fixed: 'right', align: 'center' }
 ];
 

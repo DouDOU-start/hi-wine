@@ -14,6 +14,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/gogf/gf/v2/util/gconv"
+
+	"backend/internal/utility"
 )
 
 // ProductService 商品服务接口
@@ -114,8 +116,8 @@ func (s *productService) List(ctx context.Context, req *v1.AdminProductListReq) 
 			Description: p.Description,
 			CategoryID:  int64(p.CategoryId),
 			IsActive:    p.IsActive,
-			CreatedAt:   p.CreatedAt.Format("2006-01-02 15:04:05"),
-			UpdatedAt:   p.UpdatedAt.Format("2006-01-02 15:04:05"),
+			CreatedAt:   utility.FormatTimeOrEmpty(p.CreatedAt),
+			UpdatedAt:   utility.FormatTimeOrEmpty(p.UpdatedAt),
 		}
 	}
 
