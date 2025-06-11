@@ -30,7 +30,7 @@
       
       <el-form-item label="状态">
         <el-select 
-          v-model="searchForm.status" 
+          v-model="searchForm.isActive" 
           placeholder="请选择状态" 
           clearable
           style="width: 200px;"
@@ -184,7 +184,7 @@ const stockOptions = [
 const initialSearchForm = {
   name: '',
   categoryId: '',
-  status: '',
+  isActive: '',
   minPrice: '',
   maxPrice: '',
   stockStatus: '',
@@ -234,7 +234,7 @@ const applyQuickFilter = (filter) => {
       searchForm.value.stockStatus = 'out';
       break;
     case 'onSale':
-      searchForm.value.status = 1;
+      searchForm.value.isActive = 1;
       break;
   }
   
