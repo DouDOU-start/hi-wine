@@ -3,170 +3,28 @@ import { getToken, getAdminInfo, setAdminInfo } from '../utils/auth';
 import { getAdminInfo as fetchAdminInfo } from '../api/user';
 import { ElMessage } from 'element-plus';
 
-// 布局组件
-const Layout = () => import('../views/layout/Index.vue');
+// 导入路由模块
+import dashboardRoutes from './modules/dashboard';
+import userRoutes from './modules/user';
+import categoryRoutes from './modules/category';
+import productRoutes from './modules/product';
+import orderRoutes from './modules/order';
+import packageRoutes from './modules/package';
+import tableRoutes from './modules/table';
+import authRoutes from './modules/auth';
+import errorRoutes from './modules/error';
 
 // 路由配置
 const routes = [
-  {
-    path: '/login',
-    name: 'Login',
-    component: () => import('../views/login/Index.vue'),
-    meta: { title: '登录', requiresAuth: false }
-  },
-  {
-    path: '/',
-    component: Layout,
-    redirect: '/dashboard',
-    children: [
-      {
-        path: 'dashboard',
-        name: 'Dashboard',
-        component: () => import('../views/dashboard/Index.vue'),
-        meta: { title: '仪表盘', icon: 'Dashboard', requiresAuth: true }
-      }
-    ]
-  },
-  {
-    path: '/user',
-    component: Layout,
-    meta: { title: '用户管理', icon: 'User', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'UserList',
-        component: () => import('../views/user/List.vue'),
-        meta: { title: '用户列表', requiresAuth: true }
-      }
-    ]
-  },
-  {
-    path: '/category',
-    component: Layout,
-    meta: { title: '分类管理', icon: 'Menu', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'CategoryList',
-        component: () => import('../views/category/List.vue'),
-        meta: { title: '分类列表', requiresAuth: true }
-      }
-    ]
-  },
-  {
-    path: '/product',
-    component: Layout,
-    meta: { title: '商品管理', icon: 'Goods', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'ProductList',
-        component: () => import('../views/product/List.vue'),
-        meta: { title: '商品列表', requiresAuth: true }
-      },
-      {
-        path: 'add',
-        name: 'ProductAdd',
-        component: () => import('../views/product/Edit.vue'),
-        meta: { title: '添加商品', requiresAuth: true }
-      },
-      {
-        path: 'edit/:id',
-        name: 'ProductEdit',
-        component: () => import('../views/product/Edit.vue'),
-        meta: { title: '编辑商品', requiresAuth: true },
-        props: true
-      }
-    ]
-  },
-  {
-    path: '/order',
-    component: Layout,
-    meta: { title: '订单管理', icon: 'List', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'OrderList',
-        component: () => import('../views/order/List.vue'),
-        meta: { title: '订单列表', requiresAuth: true }
-      },
-      {
-        path: 'detail/:id',
-        name: 'OrderDetail',
-        component: () => import('../views/order/Detail.vue'),
-        meta: { title: '订单详情', requiresAuth: true },
-        props: true
-      }
-    ]
-  },
-  {
-    path: '/package',
-    component: Layout,
-    meta: { title: '畅饮套餐管理', icon: 'Tickets', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'PackageList',
-        component: () => import('../views/package/List.vue'),
-        meta: { title: '套餐列表', requiresAuth: true }
-      },
-      {
-        path: 'add',
-        name: 'PackageAdd',
-        component: () => import('../views/package/Edit.vue'),
-        meta: { title: '添加套餐', requiresAuth: true }
-      },
-      {
-        path: 'edit/:id',
-        name: 'PackageEdit',
-        component: () => import('../views/package/Edit.vue'),
-        meta: { title: '编辑套餐', requiresAuth: true },
-        props: true
-      },
-      {
-        path: 'user-packages',
-        name: 'UserPackages',
-        component: () => import('../views/package/UserPackages.vue'),
-        meta: { title: '用户套餐', requiresAuth: true }
-      }
-    ]
-  },
-  {
-    path: '/table',
-    component: Layout,
-    meta: { title: '桌号管理', icon: 'Grid', requiresAuth: true },
-    children: [
-      {
-        path: 'list',
-        name: 'TableList',
-        component: () => import('../views/table/List.vue'),
-        meta: { title: '桌号列表', requiresAuth: true }
-      },
-      {
-        path: 'add',
-        name: 'TableAdd',
-        component: () => import('../views/table/Edit.vue'),
-        meta: { title: '添加桌号', requiresAuth: true }
-      },
-      {
-        path: 'edit/:id',
-        name: 'TableEdit',
-        component: () => import('../views/table/Edit.vue'),
-        meta: { title: '编辑桌号', requiresAuth: true },
-        props: true
-      }
-    ]
-  },
-  {
-    path: '/404',
-    name: 'NotFound',
-    component: () => import('../views/error/404.vue'),
-    meta: { title: '404', requiresAuth: false }
-  },
-  {
-    path: '/:pathMatch(.*)*',
-    redirect: '/404'
-  }
+  ...authRoutes,
+  dashboardRoutes,
+  userRoutes,
+  categoryRoutes,
+  productRoutes,
+  orderRoutes,
+  packageRoutes,
+  tableRoutes,
+  ...errorRoutes
 ];
 
 // 创建路由实例

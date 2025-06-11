@@ -1,19 +1,17 @@
-import { get, post, put, download } from '../utils/request';
+import { createApi } from '../utils/apiFactory';
+import { get, download } from '../utils/request';
 
-// 获取订单列表
-export function getOrderList(params) {
-  return get('/admin/orders', params);
-}
+// 创建基础API
+const orderApi = createApi('/admin/orders', {
+  statusUpdateUrl: '/status'
+});
 
-// 获取订单详情
-export function getOrderDetail(id) {
-  return get(`/admin/orders/${id}`);
-}
-
-// 更新订单状态
-export function updateOrderStatus(id, orderStatus) {
-  return put(`/admin/orders/${id}/status`, { order_status: orderStatus });
-}
+// 导出基础API方法
+export const {
+  getList: getOrderList,
+  getDetail: getOrderDetail,
+  updateStatus: updateOrderStatus
+} = orderApi;
 
 // 获取订单统计数据
 export function getOrderStats() {

@@ -1,85 +1,29 @@
-import request from '../utils/request';
+import { createApi } from '../utils/apiFactory';
+import { post } from '../utils/request';
 
-// 获取商品列表
-export function getProductList(params) {
-  return request({
-    url: '/admin/products',
-    method: 'get',
-    params
-  });
-}
+// 创建基础API
+const productApi = createApi('/admin/products', {
+  batchUrl: '/batch'
+});
 
-// 获取商品详情
-export function getProductDetail(id) {
-  return request({
-    url: `/admin/products/${id}`,
-    method: 'get'
-  });
-}
-
-// 添加商品
-export function addProduct(data) {
-  return request({
-    url: '/admin/products',
-    method: 'post',
-    data
-  });
-}
-
-// 更新商品
-export function updateProduct(id, data) {
-  return request({
-    url: `/admin/products/${id}`,
-    method: 'put',
-    data
-  });
-}
-
-// 删除商品
-export function deleteProduct(id) {
-  return request({
-    url: `/admin/products/${id}`,
-    method: 'delete'
-  });
-}
+// 导出基础API方法
+export const {
+  getList: getProductList,
+  getDetail: getProductDetail,
+  create: addProduct,
+  update: updateProduct,
+  delete: deleteProduct,
+  batchUpdate: batchUpdateProductStatus
+} = productApi;
 
 // 上下架商品
 export function updateProductStatus(id, status) {
-  console.log('API调用 - 更新商品状态:', id, status);
   // 确保status是布尔值
   const isActive = status === 1;
   
-  // 先获取商品详情，然后只修改状态
-  return request({
-    url: `/admin/products/${id}`,
-    method: 'get'
-  }).then(response => {
-    const product = response.data;
-    // 同时设置两个状态字段，以适应不同的API接口风格
-    product.is_active = isActive;
-    product.status = status;
-    
-    console.log('发送更新请求，数据:', product);
-    
-    // 发送更新请求
-    return request({
-      url: `/admin/products/${id}`,
-      method: 'put',
-      data: product
-    });
-  });
-}
-
-// 批量更新商品状态
-export function batchUpdateProductStatus(ids, status) {
-  // 确保status是布尔值
-  const isActive = status === 1;
-  console.log('批量更新商品状态:', ids, '状态:', isActive);
-  
-  return request({
-    url: '/admin/products/batch',
-    method: 'put',
-    data: { ids, is_active: isActive, status: status }
+  return productApi.update(id, { 
+    is_active: isActive, 
+    status: status 
   });
 }
 
@@ -88,10 +32,7 @@ export function uploadProductImage(file) {
   const formData = new FormData();
   formData.append('file', file);
   
-  return request({
-    url: '/admin/upload',
-    method: 'post',
-    data: formData,
+  return post('/admin/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data'
     }

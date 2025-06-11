@@ -1,29 +1,17 @@
-import { get, post, put, del, download } from '../utils/request';
+import { createApi } from '../utils/apiFactory';
+import { post, download } from '../utils/request';
 
-// 获取桌号列表
-export function getTableList(params) {
-  return get('/admin/table-qrcodes', params);
-}
+// 创建基础API
+const tableApi = createApi('/admin/table-qrcodes');
 
-// 获取桌号详情
-export function getTableDetail(id) {
-  return get(`/admin/table-qrcodes/${id}`);
-}
-
-// 创建桌号
-export function createTable(data) {
-  return post('/admin/table-qrcodes', data);
-}
-
-// 更新桌号
-export function updateTable(id, data) {
-  return put(`/admin/table-qrcodes/${id}`, data);
-}
-
-// 删除桌号
-export function deleteTable(id) {
-  return del(`/admin/table-qrcodes/${id}`);
-}
+// 导出基础API方法
+export const {
+  getList: getTableList,
+  getDetail: getTableDetail,
+  create: createTable,
+  update: updateTable,
+  delete: deleteTable
+} = tableApi;
 
 // 重新生成桌号二维码
 export function regenerateQrcode(id) {

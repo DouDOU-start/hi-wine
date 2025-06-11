@@ -1,4 +1,16 @@
-import { get, post, put, del } from '../utils/request';
+import { createApi } from '../utils/apiFactory';
+import { get, post, put } from '../utils/request';
+
+// 创建管理员API
+const adminApi = createApi('/admin/users');
+
+// 导出管理员API方法
+export const {
+  getList: getAdminList,
+  create: createAdmin,
+  update: updateAdmin,
+  delete: deleteAdmin
+} = adminApi;
 
 // 管理员登录
 export function login(data) {
@@ -10,29 +22,9 @@ export function getAdminInfo() {
   return get('/admin/profile');
 }
 
-// 获取管理员列表
-export function getAdminList(params) {
-  return get('/admin/users', params);
-}
-
-// 创建管理员
-export function createAdmin(data) {
-  return post('/admin/users', data);
-}
-
-// 更新管理员信息
-export function updateAdmin(id, data) {
-  return put(`/admin/users/${id}`, data);
-}
-
 // 重置管理员密码
 export function resetAdminPassword(id, newPassword) {
   return post(`/admin/users/${id}/reset-password`, { newPassword });
-}
-
-// 删除管理员
-export function deleteAdmin(id) {
-  return del(`/admin/users/${id}`);
 }
 
 // 获取普通用户列表

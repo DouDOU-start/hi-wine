@@ -20,18 +20,7 @@ export default defineConfig({
         target: apiBaseUrl,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '/api/v1'),
-        ws: true,
-        configure: (proxy, options) => {
-          proxy.on('error', (err, req, res) => {
-            console.log('代理错误:', err);
-          });
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            console.log('发送请求:', req.method, req.url);
-          });
-          proxy.on('proxyRes', (proxyRes, req, res) => {
-            console.log('收到响应:', proxyRes.statusCode, req.url);
-          });
-        }
+        ws: true
       },
     },
   },

@@ -11,20 +11,19 @@ export function formatDate(timestamp, format = 'YYYY-MM-DD HH:mm:ss') {
   
   if (isNaN(date.getTime())) return '-';
   
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  const hours = String(date.getHours()).padStart(2, '0');
-  const minutes = String(date.getMinutes()).padStart(2, '0');
-  const seconds = String(date.getSeconds()).padStart(2, '0');
+  const formatOptions = {
+    YYYY: date.getFullYear(),
+    MM: String(date.getMonth() + 1).padStart(2, '0'),
+    DD: String(date.getDate()).padStart(2, '0'),
+    HH: String(date.getHours()).padStart(2, '0'),
+    mm: String(date.getMinutes()).padStart(2, '0'),
+    ss: String(date.getSeconds()).padStart(2, '0')
+  };
   
-  return format
-    .replace('YYYY', year)
-    .replace('MM', month)
-    .replace('DD', day)
-    .replace('HH', hours)
-    .replace('mm', minutes)
-    .replace('ss', seconds);
+  return Object.entries(formatOptions).reduce(
+    (result, [key, value]) => result.replace(key, value),
+    format
+  );
 }
 
 /**
@@ -35,12 +34,8 @@ export function formatDate(timestamp, format = 'YYYY-MM-DD HH:mm:ss') {
  * @returns {string} 格式化后的价格字符串
  */
 export function formatPrice(price, decimals = 2, currency = '¥') {
-  if (price === undefined || price === null) return `${currency}0.00`;
-  
-  const number = parseFloat(price);
-  if (isNaN(number)) return `${currency}0.00`;
-  
-  return `${currency}${number.toFixed(decimals)}`;
+  const number = Number(price);
+  return `${currency}${(isNaN(number) ? 0 : number).toFixed(decimals)}`;
 }
 
 /**
@@ -71,13 +66,12 @@ export function toCamelCase(obj) {
     return obj.map(item => toCamelCase(item));
   }
   
-  const result = {};
-  Object.keys(obj).forEach(key => {
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    result[camelKey] = toCamelCase(obj[key]);
-  });
-  
-  return result;
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase()),
+      toCamelCase(value)
+    ])
+  );
 }
 
 /**
@@ -92,11 +86,10 @@ export function toSnakeCase(obj) {
     return obj.map(item => toSnakeCase(item));
   }
   
-  const result = {};
-  Object.keys(obj).forEach(key => {
-    const snakeKey = key.replace(/([A-Z])/g, letter => `_${letter.toLowerCase()}`);
-    result[snakeKey] = toSnakeCase(obj[key]);
-  });
-  
-  return result;
+  return Object.fromEntries(
+    Object.entries(obj).map(([key, value]) => [
+      key.replace(/([A-Z])/g, letter => `_${letter.toLowerCase()}`),
+      toSnakeCase(value)
+    ])
+  );
 } 

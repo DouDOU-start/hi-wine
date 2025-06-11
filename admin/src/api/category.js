@@ -1,53 +1,19 @@
-import request from '../utils/request';
+import { createApi } from '../utils/apiFactory';
+import { put } from '../utils/request';
 
-// 获取分类列表
-export function getCategoryList(params) {
-  return request({
-    url: '/admin/categories',
-    method: 'get',
-    params
-  });
-}
+// 创建基础API
+const categoryApi = createApi('/admin/categories');
 
-// 获取分类详情
-export function getCategoryDetail(id) {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'get'
-  });
-}
-
-// 添加分类
-export function addCategory(data) {
-  return request({
-    url: '/admin/categories',
-    method: 'post',
-    data
-  });
-}
-
-// 更新分类
-export function updateCategory(id, data) {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'put',
-    data
-  });
-}
-
-// 删除分类
-export function deleteCategory(id) {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'delete'
-  });
-}
+// 导出基础API方法
+export const {
+  getList: getCategoryList,
+  getDetail: getCategoryDetail,
+  create: addCategory,
+  update: updateCategory,
+  delete: deleteCategory
+} = categoryApi;
 
 // 更新分类状态
 export function updateCategoryStatus(id, status) {
-  return request({
-    url: `/admin/categories/${id}`,
-    method: 'put',
-    data: { isActive: status }
-  });
+  return put(`/admin/categories/${id}`, { isActive: status });
 } 
